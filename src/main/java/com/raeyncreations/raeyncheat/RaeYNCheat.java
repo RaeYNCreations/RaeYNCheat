@@ -176,9 +176,7 @@ public class RaeYNCheat {
         LOGGER.info("RaeYNCheat server stopping");
         try {
             PasskeyLogger.logSessionSeparator("Server Stopping");
-            // Give logger time to flush queue
-            Thread.sleep(500);
-            PasskeyLogger.shutdown();
+            PasskeyLogger.shutdown(); // Waits for queue to flush internally
         } catch (Exception e) {
             LOGGER.debug("PasskeyLogger not initialized or error during shutdown", e);
         }

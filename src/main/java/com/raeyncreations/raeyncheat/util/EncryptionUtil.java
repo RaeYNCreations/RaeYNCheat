@@ -96,9 +96,9 @@ public class EncryptionUtil {
             byte[] uuidHash = sha.digest(playerUUID.getBytes(StandardCharsets.UTF_8));
             
             // Convert hash to Base64 and use first 32 characters for compactness
-            // 32 Base64 chars = 192 bits of entropy (6 bits per char)
+            // SHA-256 produces 32 bytes which encodes to 44 Base64 chars, always safe
             String uuidHashB64 = Base64.getEncoder().encodeToString(uuidHash);
-            String compactHash = uuidHashB64.substring(0, Math.min(32, uuidHashB64.length()));
+            String compactHash = uuidHashB64.substring(0, 32);
             
             return getDeobfuscatedPermanentKey() + ":" + compactHash;
         } catch (java.security.NoSuchAlgorithmException e) {

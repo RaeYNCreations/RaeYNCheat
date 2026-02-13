@@ -110,6 +110,12 @@ public class PasskeyLogger {
         running.set(false);
         if (loggerThread != null) {
             try {
+                // Wait for queue to drain (max 10 seconds)
+                long startWait = System.currentTimeMillis();
+                while (!logQueue.isEmpty() && (System.currentTimeMillis() - startWait) < 10000) {
+                    Thread.sleep(100);
+                }
+                // Wait for logger thread to finish
                 loggerThread.join(5000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
