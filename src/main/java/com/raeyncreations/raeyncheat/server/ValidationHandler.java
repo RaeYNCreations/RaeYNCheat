@@ -53,7 +53,7 @@ public class ValidationHandler {
             
             RaeYNCheat.LOGGER.info("Passkey validation PASSED for player {} (UUID: {})", playerUsername, playerUUID);
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.error("Error validating passkey for player " + playerUsername, e);
+            RaeYNCheat.LOGGER.error("Error validating passkey for player {}", playerUsername, e);
             PasskeyLogger.logError(playerUsername, playerUUID, clientPasskey, 
                 "PASSKEY_VALIDATION_ERROR", "Exception during passkey validation: " + e.getMessage(), e);
             handlePasskeyViolation(player);
@@ -93,8 +93,9 @@ public class ValidationHandler {
                 return;
             }
             
-            // Compare checksums
-            checksumValid = checkFileManager.compareCheckSums(clientChecksum, serverChecksum);
+            // Compare checksums by decrypting first (encrypted checksums have random IVs, so direct comparison fails)
+            checksumValid = checkFileManager.compareCheckSums(clientChecksum, serverChecksum, 
+                clientPasskey, playerUUID, playerUsername);
             
             RaeYNCheat.LOGGER.debug("Checksum comparison result: {}", checksumValid);
             
@@ -114,7 +115,7 @@ public class ValidationHandler {
             PasskeyLogger.logValidationSuccess(playerUsername, playerUUID, clientChecksum, serverChecksum);
             
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.error("Error validating checksum for player " + playerUsername, e);
+            RaeYNCheat.LOGGER.error("Error validating checksum for player {}", playerUsername, e);
             PasskeyLogger.logError(playerUsername, playerUUID, clientChecksum, 
                 "CHECKSUM_VALIDATION_ERROR", "Exception during checksum validation: " + e.getMessage(), e);
             handleChecksumViolation(player);

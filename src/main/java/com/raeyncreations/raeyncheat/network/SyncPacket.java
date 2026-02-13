@@ -91,10 +91,29 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
                 return;
             }
             
+            // Validate Base64 format (passkey and checksum should be Base64-encoded)
+            if (!isValidBase64Format(packet.passkey()) || !isValidBase64Format(packet.checksum())) {
+                RaeYNCheat.LOGGER.error("Received sync packet with invalid Base64 format from player {} (UUID: {})", 
+                    playerUsername, playerUUID);
+                player.connection.disconnect(Component.literal("Invalid sync packet - malformed data"));
+                return;
+            }
+            
             RaeYNCheat.LOGGER.info("Received sync packet from player {} (UUID: {})", playerUsername, playerUUID);
             
             // Validate passkey and checksum
             ValidationHandler.validatePlayer(player, packet.passkey(), packet.checksum());
         }
+    }
+    
+    /**
+     * Validate that a string is valid Base64 format (allowing : for passkey separator)
+     */
+    private static boolean isValidBase64Format(String data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        // Allow Base64 characters (A-Za-z0-9+/=) and colon for passkey separator
+        return data.matches("^[A-Za-z0-9+/=:]+$");
     }
 }

@@ -156,7 +156,7 @@ public class RaeYNCheatClient {
         
         // If UUID cannot be retrieved, this is a critical error
         // Don't use a placeholder UUID as it would allow all players without UUIDs to share the same passkey
-        throw new IllegalStateException("Player UUID could not be retrieved - cannot generate passkey");
+        throw new IllegalStateException("Authentication failed - unable to verify client identity");
     }
     
     private String getPlayerUsername() {

@@ -15,6 +15,18 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.Base64;
 
+/**
+ * Encryption utility for RaeYNCheat mod verification.
+ * 
+ * SECURITY NOTES:
+ * - Primary encryption: AES-128/GCM with PBKDF2 key derivation (cryptographically secure)
+ * - XOR obfuscation: Used for additional layer only, NOT cryptographically secure
+ *   (XOR is reversible and should not be relied upon for security)
+ * - Permanent key derivation: Based on current date (predictable, ~36,500 variations per decade)
+ *   This is acceptable for this use case as it's combined with player UUID hashing
+ * 
+ * Thread Safety: All public methods are thread-safe
+ */
 public class EncryptionUtil {
     
     // Use AES/GCM for authenticated encryption
@@ -184,6 +196,13 @@ public class EncryptionUtil {
      * XOR encrypt data for additional protection
      */
     public static String xorEncrypt(String data, String key) {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("XOR encryption key cannot be null or empty");
+        }
+        if (data == null) {
+            throw new IllegalArgumentException("Data to encrypt cannot be null");
+        }
+        
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < data.length(); i++) {
             result.append((char) (data.charAt(i) ^ key.charAt(i % key.length())));
@@ -195,6 +214,13 @@ public class EncryptionUtil {
      * XOR decrypt data
      */
     public static String xorDecrypt(String encryptedData, String key) throws Exception {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("XOR decryption key cannot be null or empty");
+        }
+        if (encryptedData == null) {
+            throw new IllegalArgumentException("Data to decrypt cannot be null");
+        }
+        
         String data = new String(Base64.getDecoder().decode(encryptedData), StandardCharsets.UTF_8);
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < data.length(); i++) {
@@ -207,11 +233,20 @@ public class EncryptionUtil {
      * Obfuscate a string using simple XOR obfuscation
      */
     public static String obfuscate(String data) {
+        if (data == null) {
+            throw new IllegalArgumentException("Data to obfuscate cannot be null");
+        }
+        
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
         byte[] obfuscated = new byte[bytes.length];
         
         // Simple XOR with a pattern (use deobfuscated key)
-        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
+        String permanentKey = getDeobfuscatedPermanentKey();
+        if (permanentKey == null || permanentKey.isEmpty()) {
+            throw new IllegalStateException("Permanent key cannot be null or empty");
+        }
+        
+        byte[] pattern = permanentKey.getBytes(StandardCharsets.UTF_8);
         for (int i = 0; i < bytes.length; i++) {
             obfuscated[i] = (byte) (bytes[i] ^ pattern[i % pattern.length]);
         }
@@ -223,11 +258,20 @@ public class EncryptionUtil {
      * Deobfuscate a string
      */
     public static String deobfuscate(String obfuscatedData) {
+        if (obfuscatedData == null) {
+            throw new IllegalArgumentException("Data to deobfuscate cannot be null");
+        }
+        
         byte[] obfuscated = Base64.getDecoder().decode(obfuscatedData);
         byte[] deobfuscated = new byte[obfuscated.length];
         
         // Reverse XOR (use deobfuscated key)
-        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
+        String permanentKey = getDeobfuscatedPermanentKey();
+        if (permanentKey == null || permanentKey.isEmpty()) {
+            throw new IllegalStateException("Permanent key cannot be null or empty");
+        }
+        
+        byte[] pattern = permanentKey.getBytes(StandardCharsets.UTF_8);
         for (int i = 0; i < obfuscated.length; i++) {
             deobfuscated[i] = (byte) (obfuscated[i] ^ pattern[i % pattern.length]);
         }

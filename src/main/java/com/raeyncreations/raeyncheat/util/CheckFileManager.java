@@ -242,10 +242,60 @@ public class CheckFileManager {
     }
     
     /**
-     * Compare two check files
+     * Compare two encrypted checksums by decrypting them first
+     * Uses constant-time comparison to prevent timing attacks
+     * 
+     * @param encryptedCheckSum1 First encrypted checksum
+     * @param encryptedCheckSum2 Second encrypted checksum
+     * @param passkey The passkey to decrypt both checksums
+     * @param playerUUID Player UUID for error reporting
+     * @param playerUsername Player username for error reporting
+     * @return true if the decrypted checksums match, false otherwise
+     * @throws IllegalArgumentException if either checksum or passkey is null
+     */
+    public boolean compareCheckSums(String encryptedCheckSum1, String encryptedCheckSum2, 
+                                     String passkey, String playerUUID, String playerUsername) {
+        if (encryptedCheckSum1 == null || encryptedCheckSum2 == null) {
+            throw new IllegalArgumentException("Checksums cannot be null for comparison");
+        }
+        if (passkey == null || passkey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Passkey cannot be null or empty for comparison");
+        }
+        
+        try {
+            // Decrypt both checksums
+            String decrypted1 = EncryptionUtil.decryptAndDeobfuscate(encryptedCheckSum1, passkey);
+            String decrypted2 = EncryptionUtil.decryptAndDeobfuscate(encryptedCheckSum2, passkey);
+            
+            // Use constant-time comparison to prevent timing attacks
+            boolean match = constantTimeEquals(decrypted1, decrypted2);
+            
+            if (match) {
+                PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, passkey, true,
+                    "DECRYPT_COMPARE", "Successfully decrypted and compared checksums - MATCH");
+            } else {
+                PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, passkey, false,
+                    "DECRYPT_COMPARE", "Successfully decrypted and compared checksums - MISMATCH");
+            }
+            
+            return match;
+        } catch (Exception e) {
+            PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, passkey, false,
+                "DECRYPT_COMPARE", "Failed to decrypt checksums for comparison: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Compare two check files (legacy method - direct comparison)
+     * WARNING: This should not be used for encrypted checksums as each encryption
+     * generates a random IV, making direct comparison impossible.
+     * 
+     * @deprecated Use {@link #compareCheckSums(String, String, String, String, String)} for encrypted checksums
      * @throws IllegalArgumentException if either checksum is null
      */
-    public boolean compareCheckSums(String checkSum1, String checkSum2) {
+    @Deprecated
+    public boolean compareCheckSumsLegacy(String checkSum1, String checkSum2) {
         if (checkSum1 == null || checkSum2 == null) {
             throw new IllegalArgumentException("Checksums cannot be null for comparison");
         }
