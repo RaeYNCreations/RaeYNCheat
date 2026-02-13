@@ -64,20 +64,17 @@ public class SensitivityAnalyzer {
             serverMap.put(cs.fileName, cs);
         }
         
-        Set<String> clientFileNames = clientMap.keySet();
-        Set<String> serverFileNames = serverMap.keySet();
-        
         // Find added files (in client but not on server)
-        Set<String> added = new HashSet<>(clientFileNames);
-        added.removeAll(serverFileNames);
+        Set<String> added = new HashSet<>(clientMap.keySet());
+        added.removeAll(serverMap.keySet());
         
         // Find removed files (on server but not in client)
-        Set<String> removed = new HashSet<>(serverFileNames);
-        removed.removeAll(clientFileNames);
+        Set<String> removed = new HashSet<>(serverMap.keySet());
+        removed.removeAll(clientMap.keySet());
         
         // Find modified files (same name but different checksum) - O(n) instead of O(n*m)
         int modified = 0;
-        for (String fileName : clientFileNames) {
+        for (String fileName : clientMap.keySet()) {
             if (serverMap.containsKey(fileName)) {
                 ChecksumUtil.FileChecksum clientCs = clientMap.get(fileName);
                 ChecksumUtil.FileChecksum serverCs = serverMap.get(fileName);
@@ -103,7 +100,7 @@ public class SensitivityAnalyzer {
         } else if (totalDiff < highThreshold) {
             level = SensitivityLevel.MEDIUM_DIFFERENCE;
             message = String.format("Medium difference (%d files) - suspicious activity", totalDiff);
-        } else if (totalDiff >= highThreshold && serverFileNames.size() > 0 && totalDiff < serverFileNames.size() * 0.8) {
+        } else if (totalDiff >= highThreshold && serverMap.size() > 0 && totalDiff < serverMap.size() * 0.8) {
             level = SensitivityLevel.HIGH_DIFFERENCE;
             message = String.format("High difference (%d files) - possible wrong modpack", totalDiff);
         } else {

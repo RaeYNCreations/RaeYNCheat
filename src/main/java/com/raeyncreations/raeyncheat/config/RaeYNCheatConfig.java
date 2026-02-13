@@ -14,11 +14,11 @@ public class RaeYNCheatConfig {
     
     // Checksum violation settings
     public volatile boolean enablePunishmentSystem = true;
-    public volatile List<Integer> punishmentSteps = createDefaultPunishmentSteps();
+    public List<Integer> punishmentSteps = java.util.Collections.synchronizedList(createDefaultPunishmentSteps());
     
     // Passkey violation settings
     public volatile boolean enablePasskeyPunishmentSystem = true;
-    public volatile List<Integer> passkeyPunishmentSteps = createDefaultPasskeyPunishmentSteps();
+    public List<Integer> passkeyPunishmentSteps = java.util.Collections.synchronizedList(createDefaultPasskeyPunishmentSteps());
     
     // Sensitivity settings for false positive detection
     public volatile int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
@@ -81,8 +81,9 @@ public class RaeYNCheatConfig {
     
     /**
      * Validate a list of punishment steps
+     * Note: No need for synchronized since the list is already thread-safe
      */
-    private synchronized void validatePunishmentSteps(List<Integer> steps, String type) {
+    private void validatePunishmentSteps(List<Integer> steps, String type) {
         for (int i = 0; i < steps.size(); i++) {
             int step = steps.get(i);
             // Only -1, 0, and positive integers are valid
@@ -175,7 +176,7 @@ public class RaeYNCheatConfig {
     
     /**
      * Internal method to set a punishment step
-     * @param steps The list of punishment steps to modify
+     * @param steps The list of punishment steps to modify (already thread-safe)
      * @param index The 0-based index of the step
      * @param duration The duration in seconds
      * @param type The type name for error messages
@@ -185,7 +186,7 @@ public class RaeYNCheatConfig {
      * with 0 (WARNING) values up to that index. This allows gradual configuration
      * of punishment steps without requiring all steps to be defined at once.
      */
-    private synchronized boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
+    private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
         // Validate index (0-based, max 29 for 30 total steps)
         if (index < 0 || index >= 30) {
             RaeYNCheat.LOGGER.error("Invalid {} step index: {}. Must be 0-29.", type, index);
