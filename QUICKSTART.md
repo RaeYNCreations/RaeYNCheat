@@ -26,27 +26,44 @@ On first run, a config file is created at `config/RaeYNCheat/config.json`:
 {
   "enablePunishmentSystem": true,
   "punishmentSteps": [
-    60,      // 1st violation: 60 seconds
-    300,     // 2nd violation: 5 minutes
-    600,     // 3rd violation: 10 minutes
-    1800,    // 4th violation: 30 minutes
-    3600,    // 5th violation: 1 hour
-    7200,    // 6th violation: 2 hours
-    14400,   // 7th violation: 4 hours
-    28800,   // 8th violation: 8 hours
-    86400,   // 9th violation: 24 hours
-    -1       // 10th violation: PERMANENT BAN
-  ]
+    60,      // 1st checksum violation: 60 seconds
+    300,     // 2nd checksum violation: 5 minutes
+    600,     // 3rd checksum violation: 10 minutes
+    1800,    // 4th checksum violation: 30 minutes
+    3600,    // 5th checksum violation: 1 hour
+    7200,    // 6th checksum violation: 2 hours
+    14400,   // 7th checksum violation: 4 hours
+    28800,   // 8th checksum violation: 8 hours
+    86400,   // 9th checksum violation: 24 hours
+    -1       // 10th checksum violation: PERMANENT BAN
+  ],
+  "enablePasskeyPunishmentSystem": true,
+  "passkeyPunishmentSteps": [
+    300,     // 1st passkey violation: 5 minutes
+    1800,    // 2nd passkey violation: 30 minutes
+    7200,    // 3rd passkey violation: 2 hours
+    86400,   // 4th passkey violation: 24 hours
+    -1       // 5th passkey violation: PERMANENT BAN
+  ],
+  "enableSensitivityChecks": true,
+  "sensitivityThresholdLow": 2,
+  "sensitivityThresholdHigh": 10
 }
 ```
 
 #### Customizing Punishments
-- **Disable system**: Set `enablePunishmentSystem` to `false`
-- **Change durations**: Modify values in `punishmentSteps` array
-- **Add steps**: Add more values (max 30)
-- **Remove steps**: Remove values from array
+- **Disable checksum system**: Set `enablePunishmentSystem` to `false`
+- **Disable passkey system**: Set `enablePasskeyPunishmentSystem` to `false`
+- **Change durations**: Modify values in `punishmentSteps` or `passkeyPunishmentSteps` arrays
+- **Add steps**: Add more values (max 30 per system)
+- **Remove steps**: Remove values from arrays
 - **Warning only**: Use `0` for a step
 - **Permanent ban**: Use `-1` for a step
+
+#### Sensitivity Settings
+- **sensitivityThresholdLow**: Files changed below this = possible testing (default: 2)
+- **sensitivityThresholdHigh**: Files changed above this = possible accident (default: 10)
+- **enableSensitivityChecks**: Enable false positive detection (default: true)
 
 #### Valid Values
 - `-1`: Permanent ban + blacklist
@@ -55,19 +72,28 @@ On first run, a config file is created at `config/RaeYNCheat/config.json`:
 
 ### Admin Commands
 
-#### Punish a Player
+#### Punish for Checksum Violation
 ```
 /raeynpunish <playername>
 ```
 - Requires OP level 2
-- Records a violation for the player
-- Applies punishment based on their violation count
+- Records a checksum violation for the player
+- Applies punishment based on their checksum violation count
 - Progressive escalation per config
+
+#### Punish for Passkey Violation
+```
+/raeynpasskeyban <playername>
+```
+- Requires OP level 2
+- Records a passkey violation for the player
+- Applies punishment based on their passkey violation count
+- More aggressive than checksum punishment (passkey failures are more suspicious)
 
 #### Examples
 ```
-/raeynpunish Steve
-/raeynpunish Alex
+/raeynpunish Steve          # For checksum violations
+/raeynpasskeyban Alex       # For passkey violations
 ```
 
 ### Monitoring
@@ -75,7 +101,8 @@ Check server logs for:
 ```
 [RaeYNCheat] Player connecting: <uuid>
 [RaeYNCheat] Server check file generated for player: <uuid>
-[RaeYNCheat] Player <uuid> has X violations. Punishment duration: Y seconds
+[RaeYNCheat] Player <uuid> has X checksum violations. Punishment duration: Y seconds
+[RaeYNCheat] Player <uuid> has X passkey violations. Punishment duration: Y seconds
 ```
 
 ## For Players

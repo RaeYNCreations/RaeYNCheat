@@ -9,14 +9,20 @@ This document provides technical implementation details for the RaeYNCheat mod s
 ### Two-Part Passkey System
 
 The passkey system combines two elements:
-1. **Permanent Key**: `"4pp7354Uc3!"` - Embedded in the mod code
+1. **Permanent Key**: `"2003, December 15th"` - Date-based key embedded in the mod code
 2. **Player UUID**: Unique Minecraft account UUID
 
-Combined format: `"4pp7354Uc3!:player-uuid-here"`
+Combined format: `"2003, December 15th:player-uuid-here"`
+
+**Obfuscation of Permanent Key**:
+- String is reversed
+- Encoded with Base64
+- Deobfuscated when needed for operations
 
 This key is used for:
 - Deriving AES encryption keys via SHA-256
 - XOR obfuscation pattern
+- Passkey validation between client and server
 
 ### Checksum Process
 
@@ -45,9 +51,11 @@ This key is used for:
 
 2. **On Player Connection**:
    ```
-   Read CheckSum_init → Generate player-specific passkey
-   → Encrypt with player's key → Write to CheckSum
-   → Compare with client's CheckSum
+   Validate client passkey → Generate player-specific passkey
+   → Read CheckSum_init → Encrypt with player's key → Write to CheckSum
+   → Compare with client's CheckSum → Analyze sensitivity
+   → Apply punishment if needed
+   ```
    ```
 
 3. **Files**:
@@ -78,31 +86,79 @@ for (int i = 0; i < bytes.length; i++) {
 ```json
 {
   "enablePunishmentSystem": true,
-  "punishmentSteps": [60, 300, 600, 1800, 3600, 7200, 14400, 28800, 86400, -1]
+  "punishmentSteps": [60, 300, 600, 1800, 3600, 7200, 14400, 28800, 86400, -1],
+  "enablePasskeyPunishmentSystem": true,
+  "passkeyPunishmentSteps": [300, 1800, 7200, 86400, -1],
+  "enableSensitivityChecks": true,
+  "sensitivityThresholdLow": 2,
+  "sensitivityThresholdHigh": 10
 }
 ```
 
+#### Dual Violation Tracking
+- **Checksum violations**: Tracked separately in `checksumViolations` map
+- **Passkey violations**: Tracked separately in `passkeyViolations` map
+- Each violation type has its own punishment escalation
+
 #### Validation Rules
 - Values must be: positive integers, 0, or -1
-- Maximum 30 steps
+- Maximum 30 steps per punishment system
 - `-1` = permanent ban + blacklist
 - `0` = warning only
 
 #### Escalation Logic
 ```java
-violationCount++;
-int stepIndex = Math.min(violationCount - 1, punishmentSteps.size() - 1);
-int duration = punishmentSteps.get(stepIndex);
+// Checksum violations
+checksumViolations.put(playerUUID, count + 1);
+int duration = config.getPunishmentDuration(count);
+
+// Passkey violations (more aggressive)
+passkeyViolations.put(playerUUID, count + 1);
+int duration = config.getPasskeyPunishmentDuration(count);
 ```
 
-#### Admin Command
+#### Admin Commands
 ```
-/raeynpunish <player>
+/raeynpunish <player>       - Checksum violation punishment
+/raeynpasskeyban <player>   - Passkey violation punishment
 ```
-- Requires OP level 2
-- Records violation
-- Applies punishment based on violation count
+- Both require OP level 2
+- Record respective violation type
+- Apply punishment based on violation count
 - Permanent ban adds to vanilla blacklist
+
+### Sensitivity Analysis
+
+#### Detection Levels
+```java
+enum SensitivityLevel {
+    NO_DIFFERENCE,      // 0 files different
+    LOW_DIFFERENCE,     // 1-2 files (might be testing)
+    MEDIUM_DIFFERENCE,  // 3-9 files (suspicious)
+    HIGH_DIFFERENCE,    // 10+ files (might be wrong modpack)
+    TOTAL_MISMATCH      // 80%+ files different
+}
+```
+
+#### Analysis Process
+```java
+// Compare client and server mod lists
+int added = clientMods - serverMods;
+int removed = serverMods - clientMods;
+int modified = sameNameDifferentChecksum;
+
+// Apply thresholds
+if (total <= lowThreshold) → LOW_DIFFERENCE
+else if (total < highThreshold) → MEDIUM_DIFFERENCE
+else if (total >= highThreshold) → HIGH_DIFFERENCE
+```
+
+#### Punishment Application
+- **NO_DIFFERENCE**: No action
+- **LOW_DIFFERENCE**: Warn only (unless strict mode)
+- **MEDIUM_DIFFERENCE**: Always punish
+- **HIGH_DIFFERENCE**: Warn (possible accident)
+- **TOTAL_MISMATCH**: Warn (wrong installation)
 
 ## File Formats
 
