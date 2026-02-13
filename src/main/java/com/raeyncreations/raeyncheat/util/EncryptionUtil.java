@@ -5,29 +5,44 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.Base64;
 
 public class EncryptionUtil {
     
-    // Permanent key in date format: "2003, December 15th"
-    // Split into multiple parts to make it harder to find in decompiled code
-    private static final String PERMANENT_KEY_PART1 = "2003";
-    private static final String PERMANENT_KEY_PART2 = ", ";
-    private static final String PERMANENT_KEY_PART3 = "December";
-    private static final String PERMANENT_KEY_PART4 = " ";
-    private static final String PERMANENT_KEY_PART5 = "15th";
+    // Permanent key in date format: "YYYY, Month Dayth" where date is current date
     private static final String ALGORITHM = "AES";
     
-    // Reconstruct the permanent key at runtime
+    // Reconstruct the permanent key at runtime using current date
     private static String reconstructPermanentKey() {
+        LocalDate today = LocalDate.now();
+        int year = today.getYear();
+        Month month = today.getMonth();
+        int day = today.getDayOfMonth();
+        String daySuffix = getDaySuffix(day);
+        
         // Use StringBuilder to make it harder to track
         StringBuilder sb = new StringBuilder();
-        sb.append(PERMANENT_KEY_PART1);
-        sb.append(PERMANENT_KEY_PART2);
-        sb.append(PERMANENT_KEY_PART3);
-        sb.append(PERMANENT_KEY_PART4);
-        sb.append(PERMANENT_KEY_PART5);
+        sb.append(year);
+        sb.append(", ");
+        sb.append(month.toString().substring(0, 1).toUpperCase() + month.toString().substring(1).toLowerCase());
+        sb.append(" ");
+        sb.append(day);
+        sb.append(daySuffix);
         return sb.toString();
+    }
+    
+    private static String getDaySuffix(int day) {
+        if (day >= 11 && day <= 13) {
+            return "th";
+        }
+        switch (day % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
     }
     
     /**
@@ -91,6 +106,29 @@ public class EncryptionUtil {
         cipher.init(Cipher.DECRYPT_MODE, key);
         byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
         return new String(decrypted, StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * XOR encrypt data for additional protection
+     */
+    public static String xorEncrypt(String data, String key) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < data.length(); i++) {
+            result.append((char) (data.charAt(i) ^ key.charAt(i % key.length())));
+        }
+        return Base64.getEncoder().encodeToString(result.toString().getBytes(StandardCharsets.UTF_8));
+    }
+    
+    /**
+     * XOR decrypt data
+     */
+    public static String xorDecrypt(String encryptedData, String key) throws Exception {
+        String data = new String(Base64.getDecoder().decode(encryptedData), StandardCharsets.UTF_8);
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < data.length(); i++) {
+            result.append((char) (data.charAt(i) ^ key.charAt(i % key.length())));
+        }
+        return result.toString();
     }
     
     /**

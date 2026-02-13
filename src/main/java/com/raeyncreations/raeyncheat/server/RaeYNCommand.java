@@ -1,5 +1,6 @@
 package com.raeyncreations.raeyncheat.server;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -12,7 +13,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.UserBanListEntry;
 
+import javax.annotation.Nullable;
+import java.util.Date;
 import java.util.UUID;
 
 public class RaeYNCommand {
@@ -79,16 +83,29 @@ public class RaeYNCommand {
             
             if (duration == -1) {
                 // Permanent ban
-                source.getServer().getPlayerList().ban(
+                UserBanListEntry banEntry = new UserBanListEntry(
                     targetPlayer.getGameProfile(),
-                    Component.literal("Permanently banned for mod violations")
+                    null, // no end date for permanent
+                    "Server",
+                    null,
+                    "Permanently banned for mod violations"
                 );
+                source.getServer().getPlayerList().getBans().add(banEntry);
                 targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for mod violations"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned"), true);
             } else if (duration > 0) {
                 // Temporary ban
+                Date endDate = new Date(System.currentTimeMillis() + duration * 1000L);
+                UserBanListEntry banEntry = new UserBanListEntry(
+                    targetPlayer.getGameProfile(),
+                    endDate,
+                    "Server",
+                    null,
+                    "Temporarily banned for mod violations"
+                );
+                source.getServer().getPlayerList().getBans().add(banEntry);
                 targetPlayer.connection.disconnect(Component.literal("You have been temporarily banned for " + duration + " seconds"));
-                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been kicked (ban duration: " + duration + "s)"), true);
+                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been temporarily banned (duration: " + duration + "s)"), true);
             } else {
                 // Just warn
                 targetPlayer.sendSystemMessage(Component.literal("Warning: Mod verification failed"));
@@ -133,17 +150,30 @@ public class RaeYNCommand {
             if (duration == -1) {
                 // Permanent ban
                 punishmentType = "PERMANENT BAN";
-                source.getServer().getPlayerList().ban(
+                UserBanListEntry banEntry = new UserBanListEntry(
                     targetPlayer.getGameProfile(),
-                    Component.literal("Permanently banned for passkey verification failures")
+                    null,
+                    "Server",
+                    null,
+                    "Permanently banned for passkey verification failures"
                 );
+                source.getServer().getPlayerList().getBans().add(banEntry);
                 targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for passkey verification failures"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned for passkey violations"), true);
             } else if (duration > 0) {
                 // Temporary ban
                 punishmentType = "TEMPORARY BAN (" + duration + " seconds)";
+                Date endDate = new Date(System.currentTimeMillis() + duration * 1000L);
+                UserBanListEntry banEntry = new UserBanListEntry(
+                    targetPlayer.getGameProfile(),
+                    endDate,
+                    "Server",
+                    null,
+                    "Temporarily banned for passkey verification failures"
+                );
+                source.getServer().getPlayerList().getBans().add(banEntry);
                 targetPlayer.connection.disconnect(Component.literal("You have been temporarily banned for " + duration + " seconds (passkey verification failed)"));
-                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been kicked for passkey violation (ban duration: " + duration + "s)"), true);
+                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been temporarily banned for passkey violation (duration: " + duration + "s)"), true);
             } else {
                 // Just warn
                 punishmentType = "WARNING";

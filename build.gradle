@@ -1,9 +1,18 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.guardsquare:proguard-gradle:7.8.2'
+    }
+}
+
 plugins {
     id 'java-library'
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.0.145'
+    id 'net.neoforged.gradle.userdev' version '7.0.184'
 }
 
 version = mod_version
@@ -14,16 +23,6 @@ base {
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
-
-// ProGuard configuration for obfuscation
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.guardsquare:proguard-gradle:7.4.2'
-    }
-}
 
 runs {
     configureEach {
