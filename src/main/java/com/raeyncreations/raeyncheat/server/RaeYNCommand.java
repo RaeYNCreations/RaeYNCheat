@@ -1,6 +1,5 @@
 package com.raeyncreations.raeyncheat.server;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -59,10 +58,11 @@ public class RaeYNCommand {
             
             if (duration == -1) {
                 // Permanent ban
-                targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for mod violations"));
-                source.getServer().getPlayerList().getBans().add(
-                    new GameProfile(playerUUID, playerName)
+                source.getServer().getPlayerList().ban(
+                    targetPlayer.getGameProfile(),
+                    Component.literal("Permanently banned for mod violations")
                 );
+                targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for mod violations"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned"), true);
             } else if (duration > 0) {
                 // Temporary ban
@@ -106,10 +106,11 @@ public class RaeYNCommand {
             
             if (duration == -1) {
                 // Permanent ban
-                targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for passkey verification failures"));
-                source.getServer().getPlayerList().getBans().add(
-                    new GameProfile(playerUUID, playerName)
+                source.getServer().getPlayerList().ban(
+                    targetPlayer.getGameProfile(),
+                    Component.literal("Permanently banned for passkey verification failures")
                 );
+                targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for passkey verification failures"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned for passkey violations"), true);
             } else if (duration > 0) {
                 // Temporary ban
