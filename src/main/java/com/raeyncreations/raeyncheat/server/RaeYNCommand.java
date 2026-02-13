@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.raeyncreations.raeyncheat.RaeYNCheat;
+import com.raeyncreations.raeyncheat.util.PasskeyLogger;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -97,6 +98,9 @@ public class RaeYNCommand {
             
             UUID playerUUID = targetPlayer.getUUID();
             
+            // Get admin username
+            String adminUsername = source.getTextName();
+            
             // Record passkey violation
             RaeYNCheat.recordPasskeyViolation(playerUUID);
             
@@ -104,8 +108,11 @@ public class RaeYNCommand {
             int violations = RaeYNCheat.getPasskeyViolationCount(playerUUID);
             int duration = RaeYNCheat.getConfig().getPasskeyPunishmentDuration(violations);
             
+            String punishmentType;
+            
             if (duration == -1) {
                 // Permanent ban
+                punishmentType = "PERMANENT BAN";
                 source.getServer().getPlayerList().ban(
                     targetPlayer.getGameProfile(),
                     Component.literal("Permanently banned for passkey verification failures")
@@ -114,13 +121,18 @@ public class RaeYNCommand {
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned for passkey violations"), true);
             } else if (duration > 0) {
                 // Temporary ban
+                punishmentType = "TEMPORARY BAN (" + duration + " seconds)";
                 targetPlayer.connection.disconnect(Component.literal("You have been temporarily banned for " + duration + " seconds (passkey verification failed)"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been kicked for passkey violation (ban duration: " + duration + "s)"), true);
             } else {
                 // Just warn
+                punishmentType = "WARNING";
                 targetPlayer.sendSystemMessage(Component.literal("Warning: Passkey verification failed"));
                 source.sendSuccess(() -> Component.literal("Player " + playerName + " has been warned for passkey violation"), true);
             }
+            
+            // Log manual violation
+            PasskeyLogger.logManualViolation(playerName, playerUUID.toString(), adminUsername, violations, punishmentType);
             
             return 1;
         } catch (Exception e) {

@@ -46,9 +46,10 @@ public class RaeYNCheatClient {
     private void generateClientCheckFile() {
         try {
             String playerUUID = getPlayerUUID();
+            String playerUsername = getPlayerUsername();
             
             RaeYNCheat.LOGGER.info("Generating client check file...");
-            checkFileManager.generateClientCheckFile(playerUUID);
+            checkFileManager.generateClientCheckFile(playerUUID, playerUsername);
             RaeYNCheat.LOGGER.info("Client check file generated successfully");
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error generating client check file", e);
@@ -65,6 +66,18 @@ public class RaeYNCheatClient {
             RaeYNCheat.LOGGER.warn("Could not get player UUID, using placeholder");
         }
         return "00000000-0000-0000-0000-000000000000";
+    }
+    
+    private String getPlayerUsername() {
+        try {
+            var minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft.getUser() != null && minecraft.getUser().getName() != null) {
+                return minecraft.getUser().getName();
+            }
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.warn("Could not get player username, using placeholder");
+        }
+        return "Unknown";
     }
     
     public static CheckFileManager getCheckFileManager() {

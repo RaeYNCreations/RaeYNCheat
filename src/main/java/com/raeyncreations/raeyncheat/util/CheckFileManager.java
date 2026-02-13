@@ -18,9 +18,18 @@ public class CheckFileManager {
     /**
      * Validate that a client's passkey matches the server's expected passkey
      */
-    public boolean validatePasskey(String clientPasskey, String playerUUID) {
+    public boolean validatePasskey(String clientPasskey, String playerUUID, String playerUsername) {
         String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
-        return expectedPasskey.equals(clientPasskey);
+        boolean isValid = expectedPasskey.equals(clientPasskey);
+        
+        if (isValid) {
+            PasskeyLogger.logValidationSuccess(playerUsername, playerUUID, clientPasskey, expectedPasskey);
+        } else {
+            String reason = "Passkey mismatch - Client passkey does not match server-generated passkey";
+            PasskeyLogger.logValidationFailure(playerUsername, playerUUID, clientPasskey, expectedPasskey, reason);
+        }
+        
+        return isValid;
     }
     
     /**
@@ -34,7 +43,7 @@ public class CheckFileManager {
      * Generate CheckSum file for client
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Encrypt -> Save
      */
-    public void generateClientCheckFile(String playerUUID) throws Exception {
+    public void generateClientCheckFile(String playerUUID, String playerUsername) throws Exception {
         // Ensure config directory exists
         Files.createDirectories(configDir);
         
@@ -46,6 +55,9 @@ public class CheckFileManager {
         
         // Generate two-part passkey
         String passkey = EncryptionUtil.generatePasskey(playerUUID);
+        
+        // Log passkey generation
+        PasskeyLogger.logGeneration(playerUsername, playerUUID, passkey);
         
         // Obfuscate and encrypt
         String encrypted = EncryptionUtil.obfuscateAndEncrypt(aggregateChecksum, passkey);
@@ -81,7 +93,7 @@ public class CheckFileManager {
      * Generate server CheckSum file from CheckSum_init for a specific player
      * Process: Read CheckSum_init -> Encrypt with player's key -> Save to CheckSum
      */
-    public void generateServerCheckFile(String playerUUID) throws Exception {
+    public void generateServerCheckFile(String playerUUID, String playerUsername) throws Exception {
         // Read CheckSum_init
         Path checkSumInitFile = configDir.resolve("CheckSum_init");
         if (!Files.exists(checkSumInitFile)) {
@@ -92,6 +104,9 @@ public class CheckFileManager {
         
         // Generate two-part passkey for this player
         String passkey = EncryptionUtil.generatePasskey(playerUUID);
+        
+        // Log passkey generation
+        PasskeyLogger.logGeneration(playerUsername, playerUUID, passkey);
         
         // Encrypt the obfuscated data
         String encrypted = EncryptionUtil.encrypt(obfuscated, passkey);
@@ -104,7 +119,7 @@ public class CheckFileManager {
     /**
      * Read and decrypt CheckSum file
      */
-    public String readCheckSum(String playerUUID) throws Exception {
+    public String readCheckSum(String playerUUID, String playerUsername) throws Exception {
         Path checkSumFile = configDir.resolve("CheckSum");
         if (!Files.exists(checkSumFile)) {
             throw new FileNotFoundException("CheckSum file not found");
@@ -113,7 +128,16 @@ public class CheckFileManager {
         String encrypted = Files.readString(checkSumFile);
         String passkey = EncryptionUtil.generatePasskey(playerUUID);
         
-        return EncryptionUtil.decryptAndDeobfuscate(encrypted, passkey);
+        try {
+            String decrypted = EncryptionUtil.decryptAndDeobfuscate(encrypted, passkey);
+            PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, passkey, true, 
+                "DECRYPT", "Successfully decrypted CheckSum file");
+            return decrypted;
+        } catch (Exception e) {
+            PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, passkey, false, 
+                "DECRYPT", "Failed to decrypt CheckSum file: " + e.getMessage());
+            throw e;
+        }
     }
     
     /**

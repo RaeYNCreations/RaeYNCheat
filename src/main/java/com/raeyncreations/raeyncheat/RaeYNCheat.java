@@ -3,6 +3,7 @@ package com.raeyncreations.raeyncheat;
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
 import com.raeyncreations.raeyncheat.server.RaeYNCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
+import com.raeyncreations.raeyncheat.util.PasskeyLogger;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -48,7 +49,12 @@ public class RaeYNCheat {
         // Get paths
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
         Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
+        Path logsDir = FMLPaths.GAMEDIR.get().resolve("logs");
         Path configFile = configDir.resolve("config.json");
+        
+        // Initialize passkey logger
+        PasskeyLogger.initialize(logsDir);
+        PasskeyLogger.logSessionSeparator("Server Started");
         
         // Load config
         config = RaeYNCheatConfig.load(configFile);
