@@ -74,6 +74,22 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             String playerUUID = player.getUUID().toString();
             String playerUsername = player.getName().getString();
             
+            // Validate packet fields are not null
+            if (packet.passkey() == null || packet.checksum() == null) {
+                RaeYNCheat.LOGGER.error("Received sync packet with null fields from player {} (UUID: {})", 
+                    playerUsername, playerUUID);
+                player.connection.disconnect(Component.literal("Invalid sync packet - null fields"));
+                return;
+            }
+            
+            // Validate packet fields are not empty
+            if (packet.passkey().trim().isEmpty() || packet.checksum().trim().isEmpty()) {
+                RaeYNCheat.LOGGER.error("Received sync packet with empty fields from player {} (UUID: {})", 
+                    playerUsername, playerUUID);
+                player.connection.disconnect(Component.literal("Invalid sync packet - empty fields"));
+                return;
+            }
+            
             RaeYNCheat.LOGGER.info("Received sync packet from player {} (UUID: {})", playerUsername, playerUUID);
             
             // Validate passkey and checksum

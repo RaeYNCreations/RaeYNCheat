@@ -234,8 +234,12 @@ public class CheckFileManager {
     
     /**
      * Compare two check files
+     * @throws IllegalArgumentException if either checksum is null
      */
     public boolean compareCheckSums(String checkSum1, String checkSum2) {
-        return checkSum1 != null && checkSum1.equals(checkSum2);
+        if (checkSum1 == null || checkSum2 == null) {
+            throw new IllegalArgumentException("Checksums cannot be null for comparison");
+        }
+        return checkSum1.equals(checkSum2);
     }
 }

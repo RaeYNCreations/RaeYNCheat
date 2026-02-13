@@ -152,7 +152,11 @@ public class ChecksumUtil {
             if (parts.length != 4) {
                 throw new IllegalArgumentException("Invalid checksum line: " + line);
             }
-            return new FileChecksum(parts[0], Long.parseLong(parts[1]), parts[2], parts[3]);
+            try {
+                return new FileChecksum(parts[0], Long.parseLong(parts[1]), parts[2], parts[3]);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid CRC32 value in checksum line: " + line, e);
+            }
         }
     }
 }
