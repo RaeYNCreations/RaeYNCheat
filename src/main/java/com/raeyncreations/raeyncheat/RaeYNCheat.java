@@ -50,6 +50,13 @@ public class RaeYNCheat {
     private static volatile boolean midnightRefreshEnabled = true;
     private static final AtomicBoolean midnightRefreshInProgress = new AtomicBoolean(false);
     private static final Object MIDNIGHT_REFRESH_LOCK = new Object();
+    
+    // Midnight refresh constants
+    private static final int MIDNIGHT_HOUR = 0;
+    private static final int MIDNIGHT_MINUTE = 0;
+    private static final int MIDNIGHT_WINDOW_SECONDS = 10; // Allow 10-second window to catch midnight
+    private static final int REFRESH_FLAG_RESET_DELAY_SECONDS = 15;
+    
     private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "RaeYNCheat-Scheduler");
         t.setDaemon(true);
@@ -150,9 +157,9 @@ public class RaeYNCheat {
         // Check if it's a new day and we haven't refreshed today yet
         // Only trigger at exactly midnight (00:00:00 - 00:00:10) to prevent multiple triggers
         if ((lastRefreshDate == null || !lastRefreshDate.equals(today))
-                && now.getHour() == 0 
-                && now.getMinute() == 0
-                && now.getSecond() < 10
+                && now.getHour() == MIDNIGHT_HOUR 
+                && now.getMinute() == MIDNIGHT_MINUTE
+                && now.getSecond() < MIDNIGHT_WINDOW_SECONDS
                 && midnightRefreshInProgress.compareAndSet(false, true)) {
             
             // Use synchronized block to ensure only one refresh happens even if multiple threads pass the atomic check
@@ -173,7 +180,8 @@ public class RaeYNCheat {
                 } finally {
                     // Schedule flag reset after 15 seconds using ScheduledExecutorService
                     try {
-                        scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
+                        scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 
+                            REFRESH_FLAG_RESET_DELAY_SECONDS, TimeUnit.SECONDS);
                     } catch (java.util.concurrent.RejectedExecutionException e) {
                         // Executor was shut down, reset flag immediately
                         midnightRefreshInProgress.set(false);
