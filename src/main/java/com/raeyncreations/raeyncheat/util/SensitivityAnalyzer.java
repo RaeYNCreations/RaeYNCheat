@@ -53,34 +53,34 @@ public class SensitivityAnalyzer {
             int lowThreshold,
             int highThreshold) {
         
-        Set<String> clientFileNames = new HashSet<>();
-        Set<String> serverFileNames = new HashSet<>();
+        // Use HashMap for O(1) lookups instead of O(n) nested loops
+        java.util.Map<String, ChecksumUtil.FileChecksum> clientMap = new java.util.HashMap<>();
+        java.util.Map<String, ChecksumUtil.FileChecksum> serverMap = new java.util.HashMap<>();
         
         for (ChecksumUtil.FileChecksum cs : clientChecksums) {
-            clientFileNames.add(cs.fileName);
+            clientMap.put(cs.fileName, cs);
         }
         for (ChecksumUtil.FileChecksum cs : serverChecksums) {
-            serverFileNames.add(cs.fileName);
+            serverMap.put(cs.fileName, cs);
         }
         
         // Find added files (in client but not on server)
-        Set<String> added = new HashSet<>(clientFileNames);
-        added.removeAll(serverFileNames);
+        Set<String> added = new HashSet<>(clientMap.keySet());
+        added.removeAll(serverMap.keySet());
         
         // Find removed files (on server but not in client)
-        Set<String> removed = new HashSet<>(serverFileNames);
-        removed.removeAll(clientFileNames);
+        Set<String> removed = new HashSet<>(serverMap.keySet());
+        removed.removeAll(clientMap.keySet());
         
-        // Find modified files (same name but different checksum)
+        // Find modified files (same name but different checksum) - O(n) instead of O(n*m)
         int modified = 0;
-        for (ChecksumUtil.FileChecksum clientCs : clientChecksums) {
-            for (ChecksumUtil.FileChecksum serverCs : serverChecksums) {
-                if (clientCs.fileName.equals(serverCs.fileName)) {
-                    // Compare checksums
-                    if (!clientCs.sha256.equals(serverCs.sha256)) {
-                        modified++;
-                    }
-                    break;
+        for (String fileName : clientMap.keySet()) {
+            if (serverMap.containsKey(fileName)) {
+                ChecksumUtil.FileChecksum clientCs = clientMap.get(fileName);
+                ChecksumUtil.FileChecksum serverCs = serverMap.get(fileName);
+                // Compare checksums
+                if (!clientCs.sha256.equals(serverCs.sha256)) {
+                    modified++;
                 }
             }
         }
@@ -100,7 +100,7 @@ public class SensitivityAnalyzer {
         } else if (totalDiff < highThreshold) {
             level = SensitivityLevel.MEDIUM_DIFFERENCE;
             message = String.format("Medium difference (%d files) - suspicious activity", totalDiff);
-        } else if (totalDiff >= highThreshold && totalDiff < serverFileNames.size() * 0.8) {
+        } else if (totalDiff >= highThreshold && serverMap.size() > 0 && totalDiff < serverMap.size() * 0.8) {
             level = SensitivityLevel.HIGH_DIFFERENCE;
             message = String.format("High difference (%d files) - possible wrong modpack", totalDiff);
         } else {
