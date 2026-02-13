@@ -13,17 +13,17 @@ import java.util.List;
 public class RaeYNCheatConfig {
     
     // Checksum violation settings
-    public boolean enablePunishmentSystem = true;
-    public List<Integer> punishmentSteps = createDefaultPunishmentSteps();
+    public volatile boolean enablePunishmentSystem = true;
+    public volatile List<Integer> punishmentSteps = createDefaultPunishmentSteps();
     
     // Passkey violation settings
-    public boolean enablePasskeyPunishmentSystem = true;
-    public List<Integer> passkeyPunishmentSteps = createDefaultPasskeyPunishmentSteps();
+    public volatile boolean enablePasskeyPunishmentSystem = true;
+    public volatile List<Integer> passkeyPunishmentSteps = createDefaultPasskeyPunishmentSteps();
     
     // Sensitivity settings for false positive detection
-    public int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
-    public int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
-    public boolean enableSensitivityChecks = true;
+    public volatile int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
+    public volatile int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
+    public volatile boolean enableSensitivityChecks = true;
     
     // Constants
     private static final int INVALID_STEP_INDEX = -999;
@@ -85,12 +85,8 @@ public class RaeYNCheatConfig {
     private synchronized void validatePunishmentSteps(List<Integer> steps, String type) {
         for (int i = 0; i < steps.size(); i++) {
             int step = steps.get(i);
+            // Only -1, 0, and positive integers are valid
             if (step < -1) {
-                RaeYNCheat.LOGGER.warn("Invalid {} step at index {}: {}. Must be -1, 0, or positive integer. Using 0.", type, i, step);
-                steps.set(i, 0);
-            }
-            // Only -1 and 0 are allowed as non-positive values
-            if (step != -1 && step < 0) {
                 RaeYNCheat.LOGGER.warn("Invalid {} step at index {}: {}. Must be -1, 0, or positive integer. Using 0.", type, i, step);
                 steps.set(i, 0);
             }

@@ -81,8 +81,11 @@ public class RaeYNCheatClient {
     private String getPlayerUUID() {
         try {
             var minecraft = net.minecraft.client.Minecraft.getInstance();
-            if (minecraft.getUser() != null && minecraft.getUser().getProfileId() != null) {
-                return minecraft.getUser().getProfileId().toString();
+            if (minecraft != null && minecraft.getUser() != null) {
+                var profileId = minecraft.getUser().getProfileId();
+                if (profileId != null) {
+                    return profileId.toString();
+                }
             }
         } catch (Exception e) {
             RaeYNCheat.LOGGER.warn("Could not get player UUID, using placeholder");
@@ -93,8 +96,11 @@ public class RaeYNCheatClient {
     private String getPlayerUsername() {
         try {
             var minecraft = net.minecraft.client.Minecraft.getInstance();
-            if (minecraft.getUser() != null && minecraft.getUser().getName() != null) {
-                return minecraft.getUser().getName();
+            if (minecraft != null && minecraft.getUser() != null) {
+                var name = minecraft.getUser().getName();
+                if (name != null) {
+                    return name;
+                }
             }
         } catch (Exception e) {
             RaeYNCheat.LOGGER.warn("Could not get player username, using placeholder");

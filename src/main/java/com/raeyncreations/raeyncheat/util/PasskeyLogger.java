@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter;
 public class PasskeyLogger {
     
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-    private static Path logFile;
+    private static volatile Path logFile;  // volatile for thread safety
     private static final Object LOCK = new Object();
     
     /**

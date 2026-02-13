@@ -103,7 +103,7 @@ public class SensitivityAnalyzer {
         } else if (totalDiff < highThreshold) {
             level = SensitivityLevel.MEDIUM_DIFFERENCE;
             message = String.format("Medium difference (%d files) - suspicious activity", totalDiff);
-        } else if (totalDiff >= highThreshold && totalDiff < serverFileNames.size() * 0.8) {
+        } else if (totalDiff >= highThreshold && serverFileNames.size() > 0 && totalDiff < serverFileNames.size() * 0.8) {
             level = SensitivityLevel.HIGH_DIFFERENCE;
             message = String.format("High difference (%d files) - possible wrong modpack", totalDiff);
         } else {
