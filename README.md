@@ -14,6 +14,7 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 - **Progressive punishment systems** with configurable ban durations for both violations
 - **Sensitivity analysis** - detects potential false positives (1-2 file changes vs entire modlist)
 - **Admin commands** for managing both checksum and passkey punishments
+- **Comprehensive passkey logging** - all passkey events logged to `logs/cheat.log` for audit trail
 
 ## Branches
 
@@ -122,6 +123,44 @@ Manually punish a player for passkey verification failures.
 - Records a passkey violation and applies punishment based on passkey violation count
 - Progressive punishment according to configured passkey punishment steps
 - More aggressive by default since passkey failures are more suspicious
+- Logs the manual violation to `logs/cheat.log` with admin username and punishment details
+
+## Passkey Event Logging
+
+All passkey-related events are automatically logged to `logs/cheat.log` for comprehensive audit trails.
+
+### Logged Events
+- **Server lifecycle**: Server start/stop events
+- **Passkey generation**: When passkeys are created for players (client/server)
+- **Passkey validation**: All validation attempts with success/failure status and reasons
+- **Manual violations**: Admin-triggered punishments via `/raeyn cheat passkey` command
+- **Player connections**: Player join/leave events with passkey details
+- **Encryption events**: Encryption/decryption operations
+- **Errors**: All passkey-related errors with stack traces
+
+### Log Format
+Each log entry includes:
+- Timestamp (format: `yyyy-MM-dd HH:mm:ss.SSS`)
+- Event type (GENERATION, VALIDATION, MANUAL_VIOLATION, etc.)
+- Status (SUCCESS/FAILURE)
+- Player username and UUID
+- Passkey (partially masked for security)
+- Failure reason (if applicable)
+- Detailed context information
+
+### Security
+- Passkeys are partially masked in logs (first 5 + last 5 characters visible)
+- Log file is thread-safe for concurrent access
+- Session separators track server restarts and player sessions
+
+### Example Log Entry
+```
+--------------------------------------------------------------------------------
+[2026-02-13 15:30:50.789] GENERATION - SUCCESS
+Player: Steve (UUID: 12345678-1234-1234-1234-123456789abc)
+Passkey: 2003,***[25 chars]***-1234
+Details: Passkey generated for player
+```
 
 ## Security Features
 
