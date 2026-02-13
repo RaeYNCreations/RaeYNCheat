@@ -91,15 +91,26 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
                 return;
             }
             
-            // Validate Base64 format (passkey and checksum should be Base64-encoded)
-            if (!isValidBase64Format(packet.passkey()) || !isValidBase64Format(packet.checksum())) {
-                RaeYNCheat.LOGGER.error("Received sync packet with invalid Base64 format from player {} (UUID: {})", 
+            // Validate Base64 format (passkey has colon separator, checksum is pure Base64)
+            if (!isValidPasskeyFormat(packet.passkey())) {
+                RaeYNCheat.LOGGER.error("Received sync packet with invalid passkey format from player {} (UUID: {})", 
                     playerUsername, playerUUID);
-                player.connection.disconnect(Component.literal("Invalid sync packet - malformed data"));
+                player.connection.disconnect(Component.literal("Invalid sync packet - malformed passkey"));
+                return;
+            }
+            
+            if (!isValidChecksumFormat(packet.checksum())) {
+                RaeYNCheat.LOGGER.error("Received sync packet with invalid checksum format from player {} (UUID: {})", 
+                    playerUsername, playerUUID);
+                player.connection.disconnect(Component.literal("Invalid sync packet - malformed checksum"));
                 return;
             }
             
             RaeYNCheat.LOGGER.info("Received sync packet from player {} (UUID: {})", playerUsername, playerUUID);
+            RaeYNCheat.LOGGER.debug("Sync packet - Passkey length: {}, Checksum length: {}", 
+                packet.passkey().length(), packet.checksum().length());
+            RaeYNCheat.LOGGER.debug("Sync packet - Passkey format: {}", 
+                packet.passkey().contains(":") ? "Two-part (contains colon)" : "Invalid (no colon)");
             
             // Validate passkey and checksum
             ValidationHandler.validatePlayer(player, packet.passkey(), packet.checksum());
@@ -107,21 +118,46 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
     }
     
     /**
-     * Validate that a string is valid Base64 format
-     * 
-     * Note: This validation allows the colon (:) character in addition to standard Base64
-     * characters (A-Za-z0-9+/=). The colon is required for the two-part passkey format
-     * which includes a separator between the permanent key and hashed UUID components.
+     * Validate that a passkey has the correct two-part format with colon separator
      * Format: "PermanentKey:HashedUUID"
+     * Both parts should be Base64-encoded strings separated by exactly one colon
      * 
-     * @param data The string to validate
-     * @return true if the string contains only valid Base64 characters and colon, false otherwise
+     * @param passkey The passkey string to validate
+     * @return true if the passkey has valid two-part Base64 format with colon separator
      */
-    private static boolean isValidBase64Format(String data) {
-        if (data == null || data.isEmpty()) {
+    private static boolean isValidPasskeyFormat(String passkey) {
+        if (passkey == null || passkey.isEmpty()) {
             return false;
         }
-        // Allow Base64 characters (A-Za-z0-9+/=) and colon for passkey separator
-        return data.matches("^[A-Za-z0-9+/=:]+$");
+        
+        // Must contain exactly one colon separator
+        int colonCount = passkey.length() - passkey.replace(":", "").length();
+        if (colonCount != 1) {
+            return false;
+        }
+        
+        // Split by colon and validate both parts are non-empty Base64
+        String[] parts = passkey.split(":", -1);
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            return false;
+        }
+        
+        // Both parts must be valid Base64 (no colons allowed in parts)
+        return parts[0].matches("^[A-Za-z0-9+/=]+$") && parts[1].matches("^[A-Za-z0-9+/=]+$");
+    }
+    
+    /**
+     * Validate that a checksum is pure Base64 format without any separator
+     * Checksums are encrypted data and should NOT contain colons
+     * 
+     * @param checksum The checksum string to validate
+     * @return true if the checksum is valid Base64 format (no colons allowed)
+     */
+    private static boolean isValidChecksumFormat(String checksum) {
+        if (checksum == null || checksum.isEmpty()) {
+            return false;
+        }
+        // Pure Base64 only - no colons allowed in checksums
+        return checksum.matches("^[A-Za-z0-9+/=]+$");
     }
 }

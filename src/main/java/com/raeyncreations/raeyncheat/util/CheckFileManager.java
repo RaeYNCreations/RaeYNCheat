@@ -37,6 +37,13 @@ public class CheckFileManager {
     public boolean validatePasskey(String clientPasskey, String playerUUID, String playerUsername) {
         String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
         
+        // Log passkey details for debugging (truncated for security)
+        PasskeyLogger.logDebug(playerUsername, playerUUID, 
+            "PASSKEY_VALIDATION", 
+            String.format("Comparing passkeys - Client length: %d, Expected length: %d, Client has colon: %b, Expected has colon: %b",
+                clientPasskey.length(), expectedPasskey.length(),
+                clientPasskey.contains(":"), expectedPasskey.contains(":")));
+        
         // Use constant-time comparison to prevent timing attacks
         boolean isValid = constantTimeEquals(clientPasskey, expectedPasskey);
         

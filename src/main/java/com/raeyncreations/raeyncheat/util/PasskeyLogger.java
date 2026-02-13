@@ -217,6 +217,14 @@ public class PasskeyLogger {
     }
     
     /**
+     * Log a debug message for passkey validation
+     */
+    public static void logDebug(String playerUsername, String playerUUID, String eventType, String debugMessage) {
+        String details = String.format("Debug: %s", debugMessage);
+        logEvent("DEBUG_" + eventType, playerUsername, playerUUID, "N/A", true, null, details);
+    }
+    
+    /**
      * Core logging method - async version
      */
     private static void logEvent(String eventType, String playerUsername, String playerUUID, 
