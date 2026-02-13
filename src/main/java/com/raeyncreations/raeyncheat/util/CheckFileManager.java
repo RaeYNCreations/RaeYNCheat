@@ -169,6 +169,10 @@ public class CheckFileManager {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         
+        // Log the obfuscated checksum being encrypted
+        PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, validatedPasskey, true,
+            "ENCRYPT", "Encrypting CheckSum_init (length: " + obfuscated.length() + ") with validated passkey");
+        
         // Log passkey generation (using the validated passkey)
         PasskeyLogger.logGeneration(playerUsername, playerUUID, validatedPasskey);
         
@@ -178,6 +182,10 @@ public class CheckFileManager {
         if (encrypted == null || encrypted.isEmpty()) {
             throw new IllegalStateException("Failed to encrypt checksum data");
         }
+        
+        // Log successful encryption
+        PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, validatedPasskey, true,
+            "ENCRYPT_COMPLETE", "Successfully encrypted CheckSum (length: " + encrypted.length() + ")");
         
         // Write to CheckSum file
         Path checkSumFile = configDir.resolve("CheckSum");

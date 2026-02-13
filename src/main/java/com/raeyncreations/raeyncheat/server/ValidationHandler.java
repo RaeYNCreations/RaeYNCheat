@@ -69,6 +69,13 @@ public class ValidationHandler {
             // Read the generated server checksum (encrypted, for direct comparison)
             String serverChecksum = checkFileManager.readEncryptedCheckSum();
             
+            RaeYNCheat.LOGGER.debug("Client checksum (first 50 chars): {}", 
+                clientChecksum != null && clientChecksum.length() > 50 ? 
+                clientChecksum.substring(0, 50) + "..." : clientChecksum);
+            RaeYNCheat.LOGGER.debug("Server checksum (first 50 chars): {}", 
+                serverChecksum != null && serverChecksum.length() > 50 ? 
+                serverChecksum.substring(0, 50) + "..." : serverChecksum);
+            
             // Validate both checksums are not null or empty
             if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
                 RaeYNCheat.LOGGER.error("Client checksum is null or empty for player {}", playerUsername);
@@ -93,6 +100,7 @@ public class ValidationHandler {
                 RaeYNCheat.LOGGER.warn("Checksum validation FAILED for player {} (UUID: {})", playerUsername, playerUUID);
                 RaeYNCheat.LOGGER.warn("Client checksum length: {}", clientChecksum.length());
                 RaeYNCheat.LOGGER.warn("Server checksum length: {}", serverChecksum.length());
+                RaeYNCheat.LOGGER.warn("Checksums match: {}", clientChecksum.equals(serverChecksum));
                 
                 PasskeyLogger.logValidationFailure(playerUsername, playerUUID, clientChecksum, serverChecksum, 
                     "Checksum mismatch - Client mods do not match server expectations");
