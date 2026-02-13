@@ -17,6 +17,15 @@ public class CheckFileManager {
         if (modsDir == null) {
             throw new IllegalArgumentException("Mods directory cannot be null");
         }
+        
+        // Validate that paths point to directories (or can be created)
+        if (Files.exists(configDir) && !Files.isDirectory(configDir)) {
+            throw new IllegalArgumentException("Config path exists but is not a directory: " + configDir);
+        }
+        if (Files.exists(modsDir) && !Files.isDirectory(modsDir)) {
+            throw new IllegalArgumentException("Mods path exists but is not a directory: " + modsDir);
+        }
+        
         this.configDir = configDir;
         this.modsDir = modsDir;
     }

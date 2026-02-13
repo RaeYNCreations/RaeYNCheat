@@ -15,10 +15,27 @@ public class RaeYNCheatConfig {
     
     // Checksum violation settings
     public volatile boolean enablePunishmentSystem = true;
+    
+    /**
+     * CopyOnWriteArrayList is used instead of Collections.synchronizedList for thread-safety.
+     * This provides:
+     * - Thread-safe iteration without ConcurrentModificationException
+     * - Atomic compound operations (size() + get())
+     * - Lock-free reads (optimal for read-heavy workload)
+     * 
+     * Punishment steps are read during every player violation check (frequent reads)
+     * but modified only during config updates via admin commands (infrequent writes).
+     * CopyOnWriteArrayList is ideal for this read-heavy, write-light pattern.
+     */
     public List<Integer> punishmentSteps = new CopyOnWriteArrayList<>(createDefaultPunishmentSteps());
     
     // Passkey violation settings
     public volatile boolean enablePasskeyPunishmentSystem = true;
+    
+    /**
+     * CopyOnWriteArrayList for thread-safe access with read-heavy, write-light pattern.
+     * See punishmentSteps documentation for rationale.
+     */
     public List<Integer> passkeyPunishmentSteps = new CopyOnWriteArrayList<>(createDefaultPasskeyPunishmentSteps());
     
     // Constants
@@ -43,7 +60,11 @@ public class RaeYNCheatConfig {
         return config;
     }
     
-    public void save(Path configPath) {
+    /**
+     * Save configuration to file
+     * Synchronized to prevent concurrent modification during serialization
+     */
+    public synchronized void save(Path configPath) {
         try {
             Files.createDirectories(configPath.getParent());
             try (Writer writer = new FileWriter(configPath.toFile())) {

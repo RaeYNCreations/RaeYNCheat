@@ -70,6 +70,11 @@ public class EncryptionUtil {
     /**
      * Generate a two-part passkey from permanent key and player UUID
      * Uses SHA-256 hash of UUID to prevent precomputation attacks
+     * 
+     * Hash truncation rationale: We use the first 32 characters (192 bits of entropy)
+     * of the Base64-encoded SHA-256 hash for compactness in network transmission
+     * while maintaining cryptographic strength. 192 bits provides more than sufficient
+     * security against brute-force attacks (2^192 possibilities).
      */
     public static String generatePasskey(String playerUUID) {
         try {
@@ -78,6 +83,7 @@ public class EncryptionUtil {
             byte[] uuidHash = sha.digest(playerUUID.getBytes(StandardCharsets.UTF_8));
             
             // Convert hash to Base64 and use first 32 characters for compactness
+            // 32 Base64 chars = 192 bits of entropy (6 bits per char)
             String uuidHashB64 = Base64.getEncoder().encodeToString(uuidHash);
             String compactHash = uuidHashB64.substring(0, Math.min(32, uuidHashB64.length()));
             

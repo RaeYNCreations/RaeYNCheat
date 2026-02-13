@@ -28,6 +28,9 @@ import java.util.UUID;
 import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Mod(RaeYNCheat.MOD_ID)
 public class RaeYNCheat {
@@ -46,6 +49,11 @@ public class RaeYNCheat {
     private static volatile LocalDate lastRefreshDate = null;
     private static volatile boolean midnightRefreshEnabled = true;
     private static final AtomicBoolean midnightRefreshInProgress = new AtomicBoolean(false);
+    private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "RaeYNCheat-Scheduler");
+        t.setDaemon(true);
+        return t;
+    });
     
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -128,7 +136,7 @@ public class RaeYNCheat {
     
     /**
      * Check every server tick for midnight to auto-refresh CheckSum_init
-     * Uses atomic flag to prevent race conditions during concurrent ticks
+     * Uses atomic flag and ScheduledExecutorService to prevent race conditions
      */
     private void onServerTick(final ServerTickEvent.Pre event) {
         if (!midnightRefreshEnabled || checkFileManager == null) {
@@ -153,17 +161,8 @@ public class RaeYNCheat {
             } catch (Exception e) {
                 LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
             } finally {
-                // Reset flag after 15 seconds using a daemon thread
-                Thread resetThread = new Thread(() -> {
-                    try {
-                        Thread.sleep(15000);
-                        midnightRefreshInProgress.set(false);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-                }, "CheckSum-Refresh-Reset");
-                resetThread.setDaemon(true);
-                resetThread.start();
+                // Schedule flag reset after 15 seconds using ScheduledExecutorService
+                scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
             }
         }
     }
@@ -172,8 +171,22 @@ public class RaeYNCheat {
         LOGGER.info("RaeYNCheat server stopping");
         try {
             PasskeyLogger.logSessionSeparator("Server Stopping");
+            // Give logger time to flush queue
+            Thread.sleep(500);
+            PasskeyLogger.shutdown();
         } catch (Exception e) {
-            LOGGER.debug("PasskeyLogger not initialized or error logging separator", e);
+            LOGGER.debug("PasskeyLogger not initialized or error during shutdown", e);
+        }
+        
+        // Shutdown the scheduled executor
+        try {
+            scheduledExecutor.shutdown();
+            if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduledExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduledExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
     
