@@ -64,18 +64,35 @@ public class ValidationHandler {
         try {
             // Generate server-side check file using the validated passkey
             RaeYNCheat.LOGGER.info("Generating server checksum for player {} using validated passkey...", playerUsername);
-            checkFileManager.generateServerCheckFile(playerUUID, playerUsername);
+            checkFileManager.generateServerCheckFile(playerUUID, playerUsername, clientPasskey);
             
             // Read the generated server checksum
             String serverChecksum = checkFileManager.readCheckSum(playerUUID, playerUsername);
+            
+            // Validate both checksums are not null or empty
+            if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
+                RaeYNCheat.LOGGER.error("Client checksum is null or empty for player {}", playerUsername);
+                PasskeyLogger.logError(playerUsername, playerUUID, clientChecksum, 
+                    "CLIENT_CHECKSUM_INVALID", "Client checksum is null or empty", null);
+                handleChecksumViolation(player);
+                return;
+            }
+            
+            if (serverChecksum == null || serverChecksum.trim().isEmpty()) {
+                RaeYNCheat.LOGGER.error("Server checksum generation resulted in null or empty for player {}", playerUsername);
+                PasskeyLogger.logError(playerUsername, playerUUID, clientChecksum, 
+                    "SERVER_CHECKSUM_INVALID", "Server checksum is null or empty", null);
+                handleChecksumViolation(player);
+                return;
+            }
             
             // Compare checksums
             checksumValid = checkFileManager.compareCheckSums(clientChecksum, serverChecksum);
             
             if (!checksumValid) {
                 RaeYNCheat.LOGGER.warn("Checksum validation FAILED for player {} (UUID: {})", playerUsername, playerUUID);
-                RaeYNCheat.LOGGER.warn("Client checksum length: {}", clientChecksum != null ? clientChecksum.length() : "null");
-                RaeYNCheat.LOGGER.warn("Server checksum length: {}", serverChecksum != null ? serverChecksum.length() : "null");
+                RaeYNCheat.LOGGER.warn("Client checksum length: {}", clientChecksum.length());
+                RaeYNCheat.LOGGER.warn("Server checksum length: {}", serverChecksum.length());
                 
                 PasskeyLogger.logValidationFailure(playerUsername, playerUUID, clientChecksum, serverChecksum, 
                     "Checksum mismatch - Client mods do not match server expectations");

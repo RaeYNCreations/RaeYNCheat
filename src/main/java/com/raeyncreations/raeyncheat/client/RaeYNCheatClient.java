@@ -19,7 +19,7 @@ import java.nio.file.Path;
 @Mod(value = RaeYNCheat.MOD_ID, dist = Dist.CLIENT)
 public class RaeYNCheatClient {
     
-    private static CheckFileManager checkFileManager;
+    private static volatile CheckFileManager checkFileManager;
     
     public RaeYNCheatClient(IEventBus modEventBus) {
         modEventBus.addListener(this::clientSetup);
@@ -102,19 +102,35 @@ public class RaeYNCheatClient {
             Path checkSumFile = configDir.resolve("CheckSum");
             
             if (!Files.exists(checkSumFile)) {
-                RaeYNCheat.LOGGER.error("CheckSum file not found after generation, cannot sync with server");
+                RaeYNCheat.LOGGER.error("CheckSum file not found after generation at: {}", checkSumFile);
+                RaeYNCheat.LOGGER.error("Cannot sync with server - check file generation failed");
                 return;
             }
             
             String clientChecksum = Files.readString(checkSumFile);
             
+            // Validate checksum is not null or empty
+            if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
+                RaeYNCheat.LOGGER.error("Generated CheckSum file is empty or invalid");
+                RaeYNCheat.LOGGER.error("Cannot sync with server - invalid checksum");
+                return;
+            }
+            
             // Generate passkey
             String clientPasskey = EncryptionUtil.generatePasskey(playerUUID);
             
+            // Validate passkey is not null or empty
+            if (clientPasskey == null || clientPasskey.trim().isEmpty()) {
+                RaeYNCheat.LOGGER.error("Generated passkey is empty or invalid");
+                RaeYNCheat.LOGGER.error("Cannot sync with server - invalid passkey");
+                return;
+            }
+            
             // Send sync packet to server
-            RaeYNCheat.LOGGER.info("Sending sync packet to server...");
+            RaeYNCheat.LOGGER.info("Sending sync packet to server (passkey length: {}, checksum length: {})...", 
+                clientPasskey.length(), clientChecksum.length());
             PacketDistributor.sendToServer(new SyncPacket(clientPasskey, clientChecksum));
-            RaeYNCheat.LOGGER.info("Sync packet sent to server");
+            RaeYNCheat.LOGGER.info("Sync packet sent to server successfully");
             
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error generating client check file and syncing", e);

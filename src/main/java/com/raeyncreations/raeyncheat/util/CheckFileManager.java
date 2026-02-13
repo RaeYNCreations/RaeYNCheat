@@ -123,10 +123,15 @@ public class CheckFileManager {
     }
     
     /**
-     * Generate server CheckSum file from CheckSum_init for a specific player
-     * Process: Read CheckSum_init -> Encrypt with player's key -> Save to CheckSum
+     * Generate server CheckSum file from CheckSum_init for a specific player using a validated passkey
+     * Process: Read CheckSum_init -> Encrypt with validated player's key -> Save to CheckSum
      */
-    public void generateServerCheckFile(String playerUUID, String playerUsername) throws Exception {
+    public void generateServerCheckFile(String playerUUID, String playerUsername, String validatedPasskey) throws Exception {
+        // Validate inputs
+        if (validatedPasskey == null || validatedPasskey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Validated passkey cannot be null or empty");
+        }
+        
         // Read CheckSum_init
         Path checkSumInitFile = configDir.resolve("CheckSum_init");
         if (!Files.exists(checkSumInitFile)) {
@@ -139,18 +144,11 @@ public class CheckFileManager {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         
-        // Generate two-part passkey for this player
-        String passkey = EncryptionUtil.generatePasskey(playerUUID);
+        // Log passkey generation (using the validated passkey)
+        PasskeyLogger.logGeneration(playerUsername, playerUUID, validatedPasskey);
         
-        if (passkey == null || passkey.isEmpty()) {
-            throw new IllegalStateException("Failed to generate passkey for player: " + playerUsername);
-        }
-        
-        // Log passkey generation
-        PasskeyLogger.logGeneration(playerUsername, playerUUID, passkey);
-        
-        // Encrypt the obfuscated data
-        String encrypted = EncryptionUtil.encrypt(obfuscated, passkey);
+        // Encrypt the obfuscated data using the validated passkey
+        String encrypted = EncryptionUtil.encrypt(obfuscated, validatedPasskey);
         
         if (encrypted == null || encrypted.isEmpty()) {
             throw new IllegalStateException("Failed to encrypt checksum data");
