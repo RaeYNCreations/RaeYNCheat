@@ -119,8 +119,8 @@ int duration = config.getPasskeyPunishmentDuration(count);
 
 #### Admin Commands
 ```
-/raeynpunish <player>       - Checksum violation punishment
-/raeynpasskeyban <player>   - Passkey violation punishment
+/raeyn cheat checksum <player>  - Checksum violation punishment
+/raeyn cheat passkey <player>   - Passkey violation punishment
 ```
 - Both require OP level 2
 - Record respective violation type
@@ -259,7 +259,8 @@ Branch naming convention supports:
 - [ ] Config file created with defaults
 
 ### Command Testing
-- [ ] `/raeynpunish` requires OP level 2
+- [ ] `/raeyn cheat checksum <player>` requires OP level 2
+- [ ] `/raeyn cheat passkey <player>` requires OP level 2
 - [ ] Violations tracked correctly
 - [ ] Punishments escalate properly
 - [ ] Permanent ban adds to blacklist
@@ -286,7 +287,7 @@ Branch naming convention supports:
 
 **Command not working**
 - Confirm player has OP level 2+
-- Check command syntax: `/raeynpunish <playername>`
+- Check command syntax: `/raeyn cheat checksum <playername>` or `/raeyn cheat passkey <playername>`
 - Review server logs for errors
 
 **Config not saving**

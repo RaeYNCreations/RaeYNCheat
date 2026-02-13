@@ -41,7 +41,7 @@ This document summarizes the improvements made to the RaeYNCheat mod system base
 **Implementation:**
 - New config fields: `enablePasskeyPunishmentSystem`, `passkeyPunishmentSteps`
 - Default passkey punishments are more aggressive (5min, 30min, 2hr, 24hr, permanent)
-- New admin command: `/raeynpasskeyban <player>`
+- Admin command: `/raeyn cheat passkey <player>`
 - Separate violation recording: `RaeYNCheat.recordPasskeyViolation()`
 
 **Benefits:**
@@ -205,8 +205,8 @@ else if total >= 80% → TOTAL MISMATCH (wrong installation)
 - No manual migration required
 
 ### Commands:
-- `/raeynpunish` still works (checksum violations)
-- New `/raeynpasskeyban` added (passkey violations)
+- `/raeyn cheat checksum <player>` (unified command structure for checksum violations)
+- `/raeyn cheat passkey <player>` (unified command structure for passkey violations)
 
 ### Violation Data:
 - In-memory only (resets on restart)

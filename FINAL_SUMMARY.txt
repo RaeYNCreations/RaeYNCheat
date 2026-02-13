@@ -87,13 +87,13 @@ All values validated on load, sensible defaults provided.
                          ADMIN COMMANDS
 ================================================================================
 
-/raeynpunish <player>
+/raeyn cheat checksum <player>
   - Punish for checksum violations
   - Records checksum violation
   - Applies punishment based on violation count
   - Requires OP level 2
 
-/raeynpasskeyban <player>
+/raeyn cheat passkey <player>
   - Punish for passkey violations
   - Records passkey violation
   - More aggressive punishment (passkey failures are suspicious)
