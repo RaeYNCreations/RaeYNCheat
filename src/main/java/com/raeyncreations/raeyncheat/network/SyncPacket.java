@@ -107,10 +107,8 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             }
             
             RaeYNCheat.LOGGER.info("Received sync packet from player {} (UUID: {})", playerUsername, playerUUID);
-            RaeYNCheat.LOGGER.debug("Sync packet - Passkey length: {}, Checksum length: {}", 
+            RaeYNCheat.LOGGER.debug("Sync packet validation passed - Passkey length: {}, Checksum length: {}", 
                 packet.passkey().length(), packet.checksum().length());
-            RaeYNCheat.LOGGER.debug("Sync packet - Passkey format: {}", 
-                packet.passkey().contains(":") ? "Two-part (contains colon)" : "Invalid (no colon)");
             
             // Validate passkey and checksum
             ValidationHandler.validatePlayer(player, packet.passkey(), packet.checksum());
@@ -130,17 +128,13 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             return false;
         }
         
-        // Must contain exactly one colon separator (efficient char iteration)
-        int colonCount = 0;
-        for (int i = 0; i < passkey.length(); i++) {
-            if (passkey.charAt(i) == ':') {
-                colonCount++;
-                if (colonCount > 1) {
-                    return false; // Early exit if more than one colon
-                }
-            }
-        }
-        if (colonCount != 1) {
+        // Must contain exactly one colon separator (efficient O(n) check)
+        int firstColon = passkey.indexOf(':');
+        int lastColon = passkey.lastIndexOf(':');
+        
+        // If indexOf and lastIndexOf return the same index, there's exactly one colon
+        // If indexOf returns -1, there are no colons
+        if (firstColon == -1 || firstColon != lastColon) {
             return false;
         }
         
