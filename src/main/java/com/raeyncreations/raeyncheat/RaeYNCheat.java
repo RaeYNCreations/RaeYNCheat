@@ -27,6 +27,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Mod(RaeYNCheat.MOD_ID)
 public class RaeYNCheat {
@@ -34,15 +38,22 @@ public class RaeYNCheat {
     public static final String MOD_ID = "raeyncheat";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     
-    private static CheckFileManager checkFileManager;
-    private static RaeYNCheatConfig config;
-    private static Path configFilePath;
+    private static volatile CheckFileManager checkFileManager;
+    private static volatile RaeYNCheatConfig config;
+    private static volatile Path configFilePath;
     private static final Map<UUID, Integer> checksumViolations = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<UUID, Integer> passkeyViolations = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Object CHECK_FILE_MANAGER_LOCK = new Object();
     
     // Midnight auto-refresh tracking
     private static volatile LocalDate lastRefreshDate = null;
     private static volatile boolean midnightRefreshEnabled = true;
+    private static final AtomicBoolean midnightRefreshInProgress = new AtomicBoolean(false);
+    private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "RaeYNCheat-Scheduler");
+        t.setDaemon(true);
+        return t;
+    });
     
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -92,27 +103,29 @@ public class RaeYNCheat {
                 return; // Exit early, checkFileManager remains null
             }
             
-            // Initialize check file manager only if directory exists
-            checkFileManager = new CheckFileManager(configDir, modsClientDir);
-            
-            // Generate CheckSum_init file on server boot with comprehensive error handling
-            try {
-                LOGGER.info("Generating server CheckSum_init file...");
-                checkFileManager.generateServerInitCheckFile();
-                LOGGER.info("Server CheckSum_init file generated successfully");
-                lastRefreshDate = LocalDate.now(); // Track initial generation
-            } catch (IllegalStateException e) {
-                LOGGER.error("CheckSum_init generation failed - invalid state: {}", e.getMessage());
-                LOGGER.warn("Server will continue but mod verification is DISABLED. Issue: {}", e.getMessage());
-                checkFileManager = null; // Disable verification
-            } catch (FileNotFoundException e) {
-                LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
-                LOGGER.warn("Server will continue but mod verification is DISABLED. Please ensure mods_client directory exists");
-                checkFileManager = null; // Disable verification
-            } catch (Exception e) {
-                LOGGER.error("Error generating server CheckSum_init file", e);
-                LOGGER.warn("Server will continue but mod verification is DISABLED due to unexpected error");
-                checkFileManager = null; // Disable verification
+            // Initialize check file manager only if directory exists (thread-safe)
+            synchronized (CHECK_FILE_MANAGER_LOCK) {
+                checkFileManager = new CheckFileManager(configDir, modsClientDir);
+                
+                // Generate CheckSum_init file on server boot with comprehensive error handling
+                try {
+                    LOGGER.info("Generating server CheckSum_init file...");
+                    checkFileManager.generateServerInitCheckFile();
+                    LOGGER.info("Server CheckSum_init file generated successfully");
+                    lastRefreshDate = LocalDate.now(); // Track initial generation
+                } catch (IllegalStateException e) {
+                    LOGGER.error("CheckSum_init generation failed - invalid state: {}", e.getMessage());
+                    LOGGER.warn("Server will continue but mod verification is DISABLED. Issue: {}", e.getMessage());
+                    checkFileManager = null; // Disable verification
+                } catch (FileNotFoundException e) {
+                    LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
+                    LOGGER.warn("Server will continue but mod verification is DISABLED. Please ensure mods_client directory exists");
+                    checkFileManager = null; // Disable verification
+                } catch (Exception e) {
+                    LOGGER.error("Error generating server CheckSum_init file", e);
+                    LOGGER.warn("Server will continue but mod verification is DISABLED due to unexpected error");
+                    checkFileManager = null; // Disable verification
+                }
             }
         } catch (Exception e) {
             LOGGER.error("Critical error during server startup", e);
@@ -123,27 +136,37 @@ public class RaeYNCheat {
     
     /**
      * Check every server tick for midnight to auto-refresh CheckSum_init
+     * Uses atomic flag and ScheduledExecutorService to prevent race conditions
      */
     private void onServerTick(final ServerTickEvent.Pre event) {
-        if (!midnightRefreshEnabled || checkFileManager == null) {
+        if (!midnightRefreshEnabled || checkFileManager == null || scheduledExecutor.isShutdown()) {
             return;
         }
         
         LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
         
         // Check if it's a new day and we haven't refreshed today yet
-        if (lastRefreshDate == null || !lastRefreshDate.equals(today)) {
-            LocalTime now = LocalTime.now();
-            
-            // Check if it's past midnight (between 00:00 and 00:05 to ensure we don't miss it)
-            if (now.getHour() == 0 && now.getMinute() < 5) {
+        // Only trigger at exactly midnight (00:00:00 - 00:00:10) to prevent multiple triggers
+        if ((lastRefreshDate == null || !lastRefreshDate.equals(today))
+                && now.getHour() == 0 
+                && now.getMinute() == 0
+                && now.getSecond() < 10
+                && midnightRefreshInProgress.compareAndSet(false, true)) {
+            try {
+                LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
+                checkFileManager.generateServerInitCheckFile();
+                lastRefreshDate = today;
+                LOGGER.info("CheckSum_init file auto-refreshed successfully");
+            } catch (Exception e) {
+                LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
+            } finally {
+                // Schedule flag reset after 15 seconds using ScheduledExecutorService
                 try {
-                    LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
-                    checkFileManager.generateServerInitCheckFile();
-                    lastRefreshDate = today;
-                    LOGGER.info("CheckSum_init file auto-refreshed successfully");
-                } catch (Exception e) {
-                    LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
+                    scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
+                } catch (java.util.concurrent.RejectedExecutionException e) {
+                    // Executor was shut down, reset flag immediately
+                    midnightRefreshInProgress.set(false);
                 }
             }
         }
@@ -153,8 +176,20 @@ public class RaeYNCheat {
         LOGGER.info("RaeYNCheat server stopping");
         try {
             PasskeyLogger.logSessionSeparator("Server Stopping");
+            PasskeyLogger.shutdown(); // Waits for queue to flush internally
         } catch (Exception e) {
-            LOGGER.debug("PasskeyLogger not initialized or error logging separator", e);
+            LOGGER.debug("PasskeyLogger not initialized or error during shutdown", e);
+        }
+        
+        // Shutdown the scheduled executor
+        try {
+            scheduledExecutor.shutdown();
+            if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduledExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduledExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
     
@@ -212,6 +247,8 @@ public class RaeYNCheat {
     }
     
     public static CheckFileManager getCheckFileManager() {
-        return checkFileManager;
+        synchronized (CHECK_FILE_MANAGER_LOCK) {
+            return checkFileManager;
+        }
     }
 }

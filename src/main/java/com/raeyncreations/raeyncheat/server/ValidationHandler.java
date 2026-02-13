@@ -66,8 +66,15 @@ public class ValidationHandler {
             RaeYNCheat.LOGGER.info("Generating server checksum for player {} using validated passkey...", playerUsername);
             checkFileManager.generateServerCheckFile(playerUUID, playerUsername, clientPasskey);
             
-            // Read the generated server checksum
-            String serverChecksum = checkFileManager.readCheckSum(playerUUID, playerUsername);
+            // Read the generated server checksum (encrypted, for direct comparison)
+            String serverChecksum = checkFileManager.readEncryptedCheckSum();
+            
+            RaeYNCheat.LOGGER.debug("Client checksum (first 50 chars): {}", 
+                clientChecksum != null && clientChecksum.length() > 50 ? 
+                clientChecksum.substring(0, 50) + "..." : clientChecksum);
+            RaeYNCheat.LOGGER.debug("Server checksum (first 50 chars): {}", 
+                serverChecksum != null && serverChecksum.length() > 50 ? 
+                serverChecksum.substring(0, 50) + "..." : serverChecksum);
             
             // Validate both checksums are not null or empty
             if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
@@ -88,6 +95,8 @@ public class ValidationHandler {
             
             // Compare checksums
             checksumValid = checkFileManager.compareCheckSums(clientChecksum, serverChecksum);
+            
+            RaeYNCheat.LOGGER.debug("Checksum comparison result: {}", checksumValid);
             
             if (!checksumValid) {
                 RaeYNCheat.LOGGER.warn("Checksum validation FAILED for player {} (UUID: {})", playerUsername, playerUUID);

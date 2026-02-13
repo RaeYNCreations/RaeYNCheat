@@ -10,16 +10,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Logger specifically for passkey-related events
  * Logs all passkey generation, validation attempts, successes, and failures
+ * Uses async logging to prevent I/O bottlenecks on validation path
  */
 public class PasskeyLogger {
     
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-    private static volatile Path logFile;  // volatile for thread safety
-    private static final Object LOCK = new Object();
+    private static volatile Path logFile;
+    private static final BlockingQueue<String> logQueue = new LinkedBlockingQueue<>(1000);
+    private static final AtomicBoolean running = new AtomicBoolean(false);
+    private static volatile Thread loggerThread;
+    private static final long MAX_LOG_SIZE = 10 * 1024 * 1024; // 10 MB
     
     /**
      * Initialize the passkey logger with the logs directory
@@ -34,8 +41,11 @@ public class PasskeyLogger {
             
             // Create file if it doesn't exist and write header
             if (!Files.exists(logFile)) {
-                writeHeader();
+                writeHeaderSync();
             }
+            
+            // Start async logger thread
+            startLoggerThread();
             
             RaeYNCheat.LOGGER.info("PasskeyLogger initialized. Logging to: " + logFile.toAbsolutePath());
         } catch (Exception e) {
@@ -44,18 +54,86 @@ public class PasskeyLogger {
     }
     
     /**
-     * Write header to new log file
+     * Start the async logger thread
      */
-    private static void writeHeader() {
-        try {
-            synchronized (LOCK) {
-                try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
-                    writer.println("================================================================================");
-                    writer.println("RaeYNCheat Passkey Event Log");
-                    writer.println("Log Started: " + LocalDateTime.now().format(TIMESTAMP_FORMAT));
-                    writer.println("================================================================================");
-                    writer.println();
+    private static void startLoggerThread() {
+        if (running.compareAndSet(false, true)) {
+            loggerThread = new Thread(() -> {
+                PrintWriter writer = null;
+                try {
+                    writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)));
+                    
+                    while (running.get() || !logQueue.isEmpty()) {
+                        String message = logQueue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+                        if (message != null) {
+                            writer.print(message);
+                            writer.flush();
+                            
+                            // Check for log rotation
+                            if (Files.size(logFile) > MAX_LOG_SIZE) {
+                                rotateLog(writer);
+                                writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    RaeYNCheat.LOGGER.error("Error in PasskeyLogger thread", e);
+                } finally {
+                    if (writer != null) {
+                        writer.close();
+                    }
                 }
+            }, "PasskeyLogger-Async");
+            loggerThread.setDaemon(true);
+            loggerThread.start();
+        }
+    }
+    
+    /**
+     * Rotate log file when it exceeds max size
+     */
+    private static void rotateLog(PrintWriter currentWriter) {
+        try {
+            currentWriter.close();
+            Path archived = logFile.getParent().resolve("cheat.log." + System.currentTimeMillis());
+            Files.move(logFile, archived);
+            RaeYNCheat.LOGGER.info("Rotated log file to: " + archived);
+        } catch (IOException e) {
+            RaeYNCheat.LOGGER.error("Failed to rotate log file", e);
+        }
+    }
+    
+    /**
+     * Shutdown the logger (call on server stop)
+     */
+    public static void shutdown() {
+        running.set(false);
+        if (loggerThread != null) {
+            try {
+                // Wait for queue to drain (max 10 seconds)
+                long startWait = System.currentTimeMillis();
+                while (!logQueue.isEmpty() && (System.currentTimeMillis() - startWait) < 10000) {
+                    Thread.sleep(100);
+                }
+                // Wait for logger thread to finish
+                loggerThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+    
+    /**
+     * Write header synchronously (used only during initialization)
+     */
+    private static void writeHeaderSync() {
+        try {
+            try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
+                writer.println("================================================================================");
+                writer.println("RaeYNCheat Passkey Event Log");
+                writer.println("Log Started: " + LocalDateTime.now().format(TIMESTAMP_FORMAT));
+                writer.println("================================================================================");
+                writer.println();
             }
         } catch (IOException e) {
             RaeYNCheat.LOGGER.error("Failed to write log header", e);
@@ -128,40 +206,42 @@ public class PasskeyLogger {
     }
     
     /**
-     * Core logging method
+     * Core logging method - async version
      */
     private static void logEvent(String eventType, String playerUsername, String playerUUID, 
                                  String passkey, boolean success, String failureReason, String details) {
-        if (logFile == null) {
-            RaeYNCheat.LOGGER.warn("PasskeyLogger not initialized. Skipping log entry.");
+        if (logFile == null || !running.get()) {
+            RaeYNCheat.LOGGER.warn("PasskeyLogger not initialized or not running. Skipping log entry.");
             return;
         }
         
         try {
-            synchronized (LOCK) {
-                try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
-                    String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
-                    String status = success ? "SUCCESS" : "FAILURE";
-                    
-                    writer.println("--------------------------------------------------------------------------------");
-                    writer.println("[" + timestamp + "] " + eventType + " - " + status);
-                    writer.println("Player: " + (playerUsername != null ? playerUsername : "Unknown") + 
-                                 " (UUID: " + (playerUUID != null ? playerUUID : "Unknown") + ")");
-                    writer.println("Passkey: " + maskPasskey(passkey));
-                    
-                    if (!success && failureReason != null) {
-                        writer.println("Failure Reason: " + failureReason);
-                    }
-                    
-                    if (details != null && !details.isEmpty()) {
-                        writer.println("Details: " + details);
-                    }
-                    
-                    writer.println();
-                }
+            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
+            String status = success ? "SUCCESS" : "FAILURE";
+            
+            StringBuilder message = new StringBuilder();
+            message.append("--------------------------------------------------------------------------------\n");
+            message.append("[").append(timestamp).append("] ").append(eventType).append(" - ").append(status).append("\n");
+            message.append("Player: ").append(playerUsername != null ? playerUsername : "Unknown")
+                   .append(" (UUID: ").append(playerUUID != null ? playerUUID : "Unknown").append(")\n");
+            message.append("Passkey: ").append(maskPasskey(passkey)).append("\n");
+            
+            if (!success && failureReason != null) {
+                message.append("Failure Reason: ").append(failureReason).append("\n");
             }
-        } catch (IOException e) {
-            RaeYNCheat.LOGGER.error("Failed to write to passkey log", e);
+            
+            if (details != null && !details.isEmpty()) {
+                message.append("Details: ").append(details).append("\n");
+            }
+            
+            message.append("\n");
+            
+            // Queue the message for async writing
+            if (!logQueue.offer(message.toString())) {
+                RaeYNCheat.LOGGER.warn("PasskeyLogger queue full, dropping log entry");
+            }
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Failed to queue passkey log entry", e);
         }
     }
     
@@ -196,23 +276,24 @@ public class PasskeyLogger {
      * Log session separator
      */
     public static void logSessionSeparator(String message) {
-        if (logFile == null) {
+        if (logFile == null || !running.get()) {
             return;
         }
         
         try {
-            synchronized (LOCK) {
-                try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
-                    writer.println();
-                    writer.println("================================================================================");
-                    writer.println(message);
-                    writer.println("Timestamp: " + LocalDateTime.now().format(TIMESTAMP_FORMAT));
-                    writer.println("================================================================================");
-                    writer.println();
-                }
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n");
+            sb.append("================================================================================\n");
+            sb.append(message).append("\n");
+            sb.append("Timestamp: ").append(LocalDateTime.now().format(TIMESTAMP_FORMAT)).append("\n");
+            sb.append("================================================================================\n");
+            sb.append("\n");
+            
+            if (!logQueue.offer(sb.toString())) {
+                RaeYNCheat.LOGGER.warn("PasskeyLogger queue full, dropping session separator");
             }
-        } catch (IOException e) {
-            RaeYNCheat.LOGGER.error("Failed to write session separator", e);
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Failed to log session separator", e);
         }
     }
 }

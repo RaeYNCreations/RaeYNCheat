@@ -17,6 +17,15 @@ public class CheckFileManager {
         if (modsDir == null) {
             throw new IllegalArgumentException("Mods directory cannot be null");
         }
+        
+        // Validate that paths point to directories (or can be created)
+        if (Files.exists(configDir) && !Files.isDirectory(configDir)) {
+            throw new IllegalArgumentException("Config path exists but is not a directory: " + configDir);
+        }
+        if (Files.exists(modsDir) && !Files.isDirectory(modsDir)) {
+            throw new IllegalArgumentException("Mods path exists but is not a directory: " + modsDir);
+        }
+        
         this.configDir = configDir;
         this.modsDir = modsDir;
     }
@@ -169,6 +178,10 @@ public class CheckFileManager {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         
+        // Log the obfuscated checksum being encrypted
+        PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, validatedPasskey, true,
+            "ENCRYPT", "Encrypting CheckSum_init (length: " + obfuscated.length() + ") with validated passkey");
+        
         // Log passkey generation (using the validated passkey)
         PasskeyLogger.logGeneration(playerUsername, playerUUID, validatedPasskey);
         
@@ -179,9 +192,29 @@ public class CheckFileManager {
             throw new IllegalStateException("Failed to encrypt checksum data");
         }
         
+        // Log successful encryption
+        PasskeyLogger.logEncryptionEvent(playerUsername, playerUUID, validatedPasskey, true,
+            "ENCRYPT_COMPLETE", "Successfully encrypted CheckSum (length: " + encrypted.length() + ")");
+        
         // Write to CheckSum file
         Path checkSumFile = configDir.resolve("CheckSum");
         Files.writeString(checkSumFile, encrypted);
+    }
+    
+    /**
+     * Read encrypted CheckSum file without decryption (for comparison)
+     * 
+     * @return The encrypted checksum content as a string
+     * @throws FileNotFoundException if the CheckSum file does not exist
+     * @throws IOException if an I/O error occurs reading the file
+     */
+    public String readEncryptedCheckSum() throws IOException {
+        Path checkSumFile = configDir.resolve("CheckSum");
+        if (!Files.exists(checkSumFile)) {
+            throw new FileNotFoundException("CheckSum file not found");
+        }
+        
+        return Files.readString(checkSumFile);
     }
     
     /**
@@ -210,8 +243,12 @@ public class CheckFileManager {
     
     /**
      * Compare two check files
+     * @throws IllegalArgumentException if either checksum is null
      */
     public boolean compareCheckSums(String checkSum1, String checkSum2) {
-        return checkSum1 != null && checkSum1.equals(checkSum2);
+        if (checkSum1 == null || checkSum2 == null) {
+            throw new IllegalArgumentException("Checksums cannot be null for comparison");
+        }
+        return checkSum1.equals(checkSum2);
     }
 }

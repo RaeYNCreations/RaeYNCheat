@@ -41,3 +41,20 @@ proguard_map.txt
 proguard_seeds.txt
 proguard_usage.txt
 
+# Local config and test data
+config/RaeYNCheat/
+mods_client/
+
+# Build artifacts (except gradle wrapper)
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Generated sources
+src/generated/
+
+# Temp files
+tmp/
+*.tmp
+
+# Sensitive files
+gradle.properties

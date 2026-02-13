@@ -9,21 +9,34 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RaeYNCheatConfig {
     
     // Checksum violation settings
     public volatile boolean enablePunishmentSystem = true;
-    public List<Integer> punishmentSteps = java.util.Collections.synchronizedList(createDefaultPunishmentSteps());
+    
+    /**
+     * CopyOnWriteArrayList is used instead of Collections.synchronizedList for thread-safety.
+     * This provides:
+     * - Thread-safe iteration without ConcurrentModificationException
+     * - Atomic compound operations (size() + get())
+     * - Lock-free reads (optimal for read-heavy workload)
+     * 
+     * Punishment steps are read during every player violation check (frequent reads)
+     * but modified only during config updates via admin commands (infrequent writes).
+     * CopyOnWriteArrayList is ideal for this read-heavy, write-light pattern.
+     */
+    public List<Integer> punishmentSteps = new CopyOnWriteArrayList<>(createDefaultPunishmentSteps());
     
     // Passkey violation settings
     public volatile boolean enablePasskeyPunishmentSystem = true;
-    public List<Integer> passkeyPunishmentSteps = java.util.Collections.synchronizedList(createDefaultPasskeyPunishmentSteps());
     
-    // Sensitivity settings for false positive detection
-    public volatile int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
-    public volatile int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
-    public volatile boolean enableSensitivityChecks = true;
+    /**
+     * CopyOnWriteArrayList for thread-safe access with read-heavy, write-light pattern.
+     * See punishmentSteps documentation for rationale.
+     */
+    public List<Integer> passkeyPunishmentSteps = new CopyOnWriteArrayList<>(createDefaultPasskeyPunishmentSteps());
     
     // Constants
     private static final int INVALID_STEP_INDEX = -999;
@@ -47,7 +60,11 @@ public class RaeYNCheatConfig {
         return config;
     }
     
-    public void save(Path configPath) {
+    /**
+     * Save configuration to file
+     * Synchronized to prevent concurrent modification during serialization
+     */
+    public synchronized void save(Path configPath) {
         try {
             Files.createDirectories(configPath.getParent());
             try (Writer writer = new FileWriter(configPath.toFile())) {
@@ -67,16 +84,6 @@ public class RaeYNCheatConfig {
         
         // Validate passkey punishment steps
         validatePunishmentSteps(passkeyPunishmentSteps, "passkey punishment");
-        
-        // Validate sensitivity thresholds
-        if (sensitivityThresholdLow < 0) {
-            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdLow: {}. Must be >= 0. Using default: 2", sensitivityThresholdLow);
-            sensitivityThresholdLow = 2;
-        }
-        if (sensitivityThresholdHigh < sensitivityThresholdLow) {
-            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdHigh: {}. Must be >= sensitivityThresholdLow. Using default: 10", sensitivityThresholdHigh);
-            sensitivityThresholdHigh = 10;
-        }
     }
     
     /**
@@ -185,6 +192,7 @@ public class RaeYNCheatConfig {
      * Note: If the index is beyond the current list size, the list will be extended
      * with 0 (WARNING) values up to that index. This allows gradual configuration
      * of punishment steps without requiring all steps to be defined at once.
+     * Maximum of 30 steps enforced.
      */
     private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
         // Validate index (0-based, max 29 for 30 total steps)
@@ -199,9 +207,15 @@ public class RaeYNCheatConfig {
             return false;
         }
         
-        // Extend list with WARNING (0) values if necessary
-        while (steps.size() <= index) {
+        // Extend list with WARNING (0) values if necessary (but don't exceed 30)
+        while (steps.size() <= index && steps.size() < 30) {
             steps.add(0);
+        }
+        
+        // Final check: don't allow setting if it would exceed 30 steps
+        if (steps.size() > 30) {
+            RaeYNCheat.LOGGER.error("Cannot set {} step - would exceed maximum of 30 steps", type);
+            return false;
         }
         
         // Set the step
