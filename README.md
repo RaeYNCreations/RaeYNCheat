@@ -249,6 +249,60 @@ src/main/java/com/raeyncreations/raeyncheat/
     └── CheckFileManager.java       # Check file generation/comparison
 ```
 
+## Troubleshooting
+
+### Mod Verification Disabled on Server
+
+If you see warnings like:
+```
+[WARN] mods_client directory does not exist. Mod verification is DISABLED.
+```
+
+**Solution**: 
+1. Create a `mods_client` folder in the server root directory (same level as the `mods` folder)
+2. Place all expected client mods (JAR files) in the `mods_client` directory
+3. Restart the server
+
+The mod will automatically detect the directory and enable verification.
+
+### Mod Verification Disabled on Client
+
+If the client shows:
+```
+[WARN] mods directory does not exist. Client check file generation is DISABLED.
+```
+
+**Solution**: This is unusual and suggests a corrupted Minecraft installation. The `mods` folder should always exist. Try:
+1. Verify your Minecraft installation
+2. Ensure you're using a proper mod loader setup
+3. Check file permissions on the game directory
+
+### Missing Mods / Registry Sync Errors
+
+If you encounter errors like:
+```
+Failed to handle registry sync from server
+NullPointerException at com.google.common.collect.Iterators$6.transform
+```
+
+Or:
+```
+Channel [mod_name:channel] failed to connect: This channel is missing on the server side
+```
+
+**These errors are NOT caused by RaeYNCheat**. They indicate:
+- A mod is present on the client but missing on the server (or vice versa)
+- Some mods have required network channels that must be on both sides
+- There's a mod compatibility issue between client and server
+
+**Solution**:
+1. Ensure both client and server have the **exact same mods** installed
+2. Check that mod versions match between client and server
+3. Remove any client-only mods from the server's `mods` folder
+4. Remove any server-only mods from the client's `mods` folder
+
+**Note**: RaeYNCheat is designed to handle missing directories gracefully and will disable verification rather than crash. The mod uses defensive programming to ensure it never interferes with Minecraft's normal operation.
+
 ## License
 
 MIT License - see LICENSE file for details
