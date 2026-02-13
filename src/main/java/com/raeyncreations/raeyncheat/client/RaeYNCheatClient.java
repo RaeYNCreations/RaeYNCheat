@@ -1,7 +1,9 @@
 package com.raeyncreations.raeyncheat.client;
 
 import com.raeyncreations.raeyncheat.RaeYNCheat;
+import com.raeyncreations.raeyncheat.network.SyncPacket;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
+import com.raeyncreations.raeyncheat.util.EncryptionUtil;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -9,7 +11,9 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.network.PacketDistributor;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Mod(value = RaeYNCheat.MOD_ID, dist = Dist.CLIENT)
@@ -51,11 +55,11 @@ public class RaeYNCheatClient {
     }
     
     private void onPlayerLoggedIn(final ClientPlayerNetworkEvent.LoggingIn event) {
-        // Regenerate check file when joining server only if checkFileManager is initialized
+        // Regenerate check file and send to server when joining
         if (checkFileManager != null) {
-            generateClientCheckFile();
+            generateClientCheckFileAndSync();
         } else {
-            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping client check file generation");
+            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping client check file generation and sync");
         }
     }
     
@@ -75,6 +79,45 @@ public class RaeYNCheatClient {
             RaeYNCheat.LOGGER.info("Client check file generated successfully");
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error generating client check file", e);
+        }
+    }
+    
+    private void generateClientCheckFileAndSync() {
+        // Only generate and sync if checkFileManager is initialized
+        if (checkFileManager == null) {
+            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation and sync");
+            return;
+        }
+        
+        try {
+            String playerUUID = getPlayerUUID();
+            String playerUsername = getPlayerUsername();
+            
+            RaeYNCheat.LOGGER.info("Generating client check file...");
+            checkFileManager.generateClientCheckFile(playerUUID, playerUsername);
+            RaeYNCheat.LOGGER.info("Client check file generated successfully");
+            
+            // Read the generated CheckSum file
+            Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
+            Path checkSumFile = configDir.resolve("CheckSum");
+            
+            if (!Files.exists(checkSumFile)) {
+                RaeYNCheat.LOGGER.error("CheckSum file not found after generation, cannot sync with server");
+                return;
+            }
+            
+            String clientChecksum = Files.readString(checkSumFile);
+            
+            // Generate passkey
+            String clientPasskey = EncryptionUtil.generatePasskey(playerUUID);
+            
+            // Send sync packet to server
+            RaeYNCheat.LOGGER.info("Sending sync packet to server...");
+            PacketDistributor.sendToServer(new SyncPacket(clientPasskey, clientChecksum));
+            RaeYNCheat.LOGGER.info("Sync packet sent to server");
+            
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error generating client check file and syncing", e);
         }
     }
     
