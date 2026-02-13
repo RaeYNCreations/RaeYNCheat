@@ -273,11 +273,25 @@ Branch naming convention supports:
 - Check config/RaeYNCheat/ folder exists
 - Verify mods/ folder has JAR files
 - Check logs for exceptions
+- **NEW**: If mods directory doesn't exist, the mod will disable verification gracefully and log a warning
 
 **Server CheckSum_init missing**
 - Verify mods_client/ folder exists
 - Ensure mods_client/ contains JAR files
 - Check server logs
+- **NEW**: If mods_client doesn't exist, server will continue but disable mod verification with a clear warning message
+
+**Mod Verification Disabled**
+- Check server logs for warnings about missing directories
+- Create the mods_client folder and add expected client mod JARs
+- Restart server to enable verification
+- The mod will never crash - it gracefully degrades when directories are missing
+
+**Registry Sync Errors / NullPointerException**
+- These are usually caused by other mods with mismatched versions
+- Not caused by RaeYNCheat - the mod has defensive programming to prevent crashes
+- Ensure all mods are present on both client and server
+- Check for mod version mismatches
 
 **Command not working**
 - Confirm player has OP level 2+

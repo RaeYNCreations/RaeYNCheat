@@ -146,6 +146,19 @@ Check server logs for:
 - Verify `mods_client/` folder exists
 - Ensure `mods_client/` contains JAR files
 - Check server logs for errors
+- **NOTE**: If mods_client doesn't exist, the server will continue running but mod verification will be DISABLED with a warning
+
+**Mod Verification Disabled Warning**
+- Create the `mods_client/` folder in server root
+- Add expected client mod JARs to `mods_client/`
+- Restart server to enable verification
+- The mod never crashes - it gracefully disables verification when directories are missing
+
+**Registry Sync Errors**
+- Usually caused by other mods with mismatched versions between client and server
+- Not caused by RaeYNCheat - this mod has defensive programming to prevent crashes
+- Ensure all mods match between client and server
+- Check for mod version mismatches
 
 **Command not working**
 - Confirm you have OP level 2 or higher
