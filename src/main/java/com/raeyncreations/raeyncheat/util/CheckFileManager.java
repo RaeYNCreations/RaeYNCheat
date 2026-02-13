@@ -44,11 +44,25 @@ public class CheckFileManager {
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Encrypt -> Save
      */
     public void generateClientCheckFile(String playerUUID, String playerUsername) throws Exception {
+        // Validate modsDir before proceeding
+        if (modsDir == null) {
+            throw new IllegalStateException("Mods directory is null - cannot generate client check file");
+        }
+        
+        if (!java.nio.file.Files.exists(modsDir)) {
+            throw new IllegalStateException("Mods directory does not exist: " + modsDir);
+        }
+        
         // Ensure config directory exists
         Files.createDirectories(configDir);
         
         // Calculate checksums for all JAR files
         List<ChecksumUtil.FileChecksum> checksums = ChecksumUtil.calculateDirectoryChecksums(modsDir);
+        
+        // Validate we have checksums before proceeding
+        if (checksums == null || checksums.isEmpty()) {
+            throw new IllegalStateException("No JAR files found in mods directory: " + modsDir);
+        }
         
         // Calculate aggregate checksum
         String aggregateChecksum = ChecksumUtil.calculateAggregateChecksum(checksums);
@@ -72,6 +86,15 @@ public class CheckFileManager {
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Save
      */
     public void generateServerInitCheckFile() throws Exception {
+        // Validate modsDir before proceeding
+        if (modsDir == null) {
+            throw new IllegalStateException("Mods directory is null - cannot generate server init check file");
+        }
+        
+        if (!java.nio.file.Files.exists(modsDir)) {
+            throw new FileNotFoundException("Mods directory does not exist: " + modsDir + ". Please create the mods_client directory and add expected client mods.");
+        }
+        
         // Ensure config directory exists
         Files.createDirectories(configDir);
         
@@ -79,7 +102,7 @@ public class CheckFileManager {
         List<ChecksumUtil.FileChecksum> checksums = ChecksumUtil.calculateDirectoryChecksums(modsDir);
         
         if (checksums == null || checksums.isEmpty()) {
-            throw new IllegalStateException("No JAR files found in mods directory: " + modsDir);
+            throw new IllegalStateException("No JAR files found in mods directory: " + modsDir + ". Please add expected client mod JARs to mods_client directory.");
         }
         
         // Calculate aggregate checksum

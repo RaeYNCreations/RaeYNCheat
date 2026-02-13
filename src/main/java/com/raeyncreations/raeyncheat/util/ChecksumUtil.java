@@ -53,14 +53,18 @@ public class ChecksumUtil {
             throw new IllegalArgumentException("Directory path cannot be null");
         }
         
-        File dir = directory.toFile();
-        if (!dir.exists() || !dir.isDirectory()) {
+        if (!java.nio.file.Files.exists(directory)) {
             throw new FileNotFoundException("Directory not found: " + directory);
+        }
+        
+        File dir = directory.toFile();
+        if (!dir.isDirectory()) {
+            throw new IllegalArgumentException("Path is not a directory: " + directory);
         }
         
         File[] jarFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
         if (jarFiles == null) {
-            throw new FileNotFoundException("Unable to list files in directory: " + directory);
+            throw new IOException("Unable to list files in directory: " + directory);
         }
         
         if (jarFiles.length == 0) {

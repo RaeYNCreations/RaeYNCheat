@@ -63,37 +63,53 @@ public class RaeYNCheat {
     private void onServerStarted(final ServerStartedEvent event) {
         LOGGER.info("RaeYNCheat server started");
         
-        // Get paths
-        Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
-        Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
-        Path logsDir = FMLPaths.GAMEDIR.get().resolve("logs");
-        configFilePath = configDir.resolve("config.json");
-        
-        // Initialize passkey logger
-        PasskeyLogger.initialize(logsDir);
-        PasskeyLogger.logSessionSeparator("Server Started");
-        
-        // Load config
-        config = RaeYNCheatConfig.load(configFilePath);
-        
-        // Initialize check file manager
-        checkFileManager = new CheckFileManager(configDir, modsClientDir);
-        
-        // Generate CheckSum_init file on server boot with comprehensive error handling
         try {
-            LOGGER.info("Generating server CheckSum_init file...");
-            checkFileManager.generateServerInitCheckFile();
-            LOGGER.info("Server CheckSum_init file generated successfully");
-            lastRefreshDate = LocalDate.now(); // Track initial generation
-        } catch (IllegalStateException e) {
-            LOGGER.error("CheckSum_init generation failed - invalid state: {}", e.getMessage());
-            LOGGER.warn("Server will continue but mod verification is DISABLED. Issue: {}", e.getMessage());
-        } catch (FileNotFoundException e) {
-            LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
-            LOGGER.warn("Server will continue but mod verification is DISABLED. Please ensure mods_client directory exists");
+            // Get paths
+            Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
+            Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
+            Path logsDir = FMLPaths.GAMEDIR.get().resolve("logs");
+            configFilePath = configDir.resolve("config.json");
+            
+            // Initialize passkey logger
+            PasskeyLogger.initialize(logsDir);
+            PasskeyLogger.logSessionSeparator("Server Started");
+            
+            // Load config
+            config = RaeYNCheatConfig.load(configFilePath);
+            
+            // Validate mods_client directory exists
+            if (modsClientDir == null || !java.nio.file.Files.exists(modsClientDir)) {
+                LOGGER.warn("mods_client directory does not exist at: {}. Mod verification is DISABLED.", modsClientDir);
+                LOGGER.warn("To enable mod verification, create the mods_client directory and add expected client mods.");
+                return; // Exit early, checkFileManager remains null
+            }
+            
+            // Initialize check file manager only if directory exists
+            checkFileManager = new CheckFileManager(configDir, modsClientDir);
+            
+            // Generate CheckSum_init file on server boot with comprehensive error handling
+            try {
+                LOGGER.info("Generating server CheckSum_init file...");
+                checkFileManager.generateServerInitCheckFile();
+                LOGGER.info("Server CheckSum_init file generated successfully");
+                lastRefreshDate = LocalDate.now(); // Track initial generation
+            } catch (IllegalStateException e) {
+                LOGGER.error("CheckSum_init generation failed - invalid state: {}", e.getMessage());
+                LOGGER.warn("Server will continue but mod verification is DISABLED. Issue: {}", e.getMessage());
+                checkFileManager = null; // Disable verification
+            } catch (FileNotFoundException e) {
+                LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
+                LOGGER.warn("Server will continue but mod verification is DISABLED. Please ensure mods_client directory exists");
+                checkFileManager = null; // Disable verification
+            } catch (Exception e) {
+                LOGGER.error("Error generating server CheckSum_init file", e);
+                LOGGER.warn("Server will continue but mod verification is DISABLED due to unexpected error");
+                checkFileManager = null; // Disable verification
+            }
         } catch (Exception e) {
-            LOGGER.error("Error generating server CheckSum_init file", e);
-            LOGGER.warn("Server will continue but mod verification is DISABLED due to unexpected error");
+            LOGGER.error("Critical error during server startup", e);
+            LOGGER.warn("Mod verification is DISABLED due to initialization failure");
+            checkFileManager = null;
         }
     }
     

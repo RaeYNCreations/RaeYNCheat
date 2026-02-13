@@ -27,23 +27,45 @@ public class RaeYNCheatClient {
     private void clientSetup(final FMLClientSetupEvent event) {
         RaeYNCheat.LOGGER.info("RaeYNCheat client initialized");
         
-        // Get paths
-        Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
-        Path modsDir = FMLPaths.GAMEDIR.get().resolve("mods");
-        
-        // Initialize check file manager
-        checkFileManager = new CheckFileManager(configDir, modsDir);
-        
-        // Generate check file on client boot
-        generateClientCheckFile();
+        try {
+            // Get paths
+            Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
+            Path modsDir = FMLPaths.GAMEDIR.get().resolve("mods");
+            
+            // Validate mods directory exists
+            if (modsDir == null || !java.nio.file.Files.exists(modsDir)) {
+                RaeYNCheat.LOGGER.warn("mods directory does not exist at: {}. Client check file generation is DISABLED.", modsDir);
+                return; // Exit early, checkFileManager remains null
+            }
+            
+            // Initialize check file manager only if directory exists
+            checkFileManager = new CheckFileManager(configDir, modsDir);
+            
+            // Generate check file on client boot
+            generateClientCheckFile();
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error during client initialization", e);
+            RaeYNCheat.LOGGER.warn("Client check file generation is DISABLED due to initialization failure");
+            checkFileManager = null;
+        }
     }
     
     private void onPlayerLoggedIn(final ClientPlayerNetworkEvent.LoggingIn event) {
-        // Regenerate check file when joining server
-        generateClientCheckFile();
+        // Regenerate check file when joining server only if checkFileManager is initialized
+        if (checkFileManager != null) {
+            generateClientCheckFile();
+        } else {
+            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping client check file generation");
+        }
     }
     
     private void generateClientCheckFile() {
+        // Only generate if checkFileManager is initialized
+        if (checkFileManager == null) {
+            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation");
+            return;
+        }
+        
         try {
             String playerUUID = getPlayerUUID();
             String playerUsername = getPlayerUsername();
