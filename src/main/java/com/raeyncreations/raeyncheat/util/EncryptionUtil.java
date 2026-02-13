@@ -2,17 +2,30 @@ package com.raeyncreations.raeyncheat.util;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.security.spec.KeySpec;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.Base64;
 
 public class EncryptionUtil {
     
-    // Permanent key in date format: "YYYY, Month Dayth" where date is current date
-    private static final String ALGORITHM = "AES";
+    // Use AES/GCM for authenticated encryption
+    private static final String ALGORITHM = "AES/GCM/NoPadding";
+    private static final String KEY_ALGORITHM = "AES";
+    private static final int GCM_IV_LENGTH = 12; // 96 bits recommended for GCM
+    private static final int GCM_TAG_LENGTH = 128; // 128 bits authentication tag
+    private static final int PBKDF2_ITERATIONS = 10000; // Reasonable for game server performance
+    private static final int KEY_LENGTH = 128; // AES-128
+    
+    private static final SecureRandom secureRandom = new SecureRandom();
     
     // Reconstruct the permanent key at runtime using current date
     private static String reconstructPermanentKey() {
@@ -95,36 +108,75 @@ public class EncryptionUtil {
     }
     
     /**
-     * Create encryption key from passkey
+     * Create encryption key from passkey using PBKDF2 for proper key derivation
+     * Uses a fixed salt derived from the passkey itself for deterministic encryption
+     * (same passkey always produces same key, which is required for checksum verification)
      */
     private static SecretKey createKey(String passkey) throws Exception {
+        // Use first 16 bytes of SHA-256(passkey) as salt for deterministic key derivation
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
-        byte[] key = sha.digest(passkey.getBytes(StandardCharsets.UTF_8));
-        // Use first 16 bytes for AES-128
-        byte[] keyBytes = new byte[16];
-        System.arraycopy(key, 0, keyBytes, 0, 16);
-        return new SecretKeySpec(keyBytes, ALGORITHM);
+        byte[] saltBytes = sha.digest(passkey.getBytes(StandardCharsets.UTF_8));
+        byte[] salt = new byte[16];
+        System.arraycopy(saltBytes, 0, salt, 0, 16);
+        
+        // Use PBKDF2 for proper key derivation
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        KeySpec spec = new PBEKeySpec(passkey.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH);
+        SecretKey tmp = factory.generateSecret(spec);
+        return new SecretKeySpec(tmp.getEncoded(), KEY_ALGORITHM);
     }
     
     /**
-     * Encrypt data using the two-part passkey
+     * Encrypt data using AES/GCM with the two-part passkey
+     * Returns Base64-encoded: IV (12 bytes) + encrypted data + authentication tag
      */
     public static String encrypt(String data, String passkey) throws Exception {
         SecretKey key = createKey(passkey);
+        
+        // Generate random IV for GCM
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        secureRandom.nextBytes(iv);
+        
+        // Initialize cipher with GCM parameters
         Cipher cipher = Cipher.getInstance(ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, key);
+        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+        cipher.init(Cipher.ENCRYPT_MODE, key, gcmSpec);
+        
+        // Encrypt the data
         byte[] encrypted = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
-        return Base64.getEncoder().encodeToString(encrypted);
+        
+        // Combine IV + encrypted data for transmission
+        ByteBuffer byteBuffer = ByteBuffer.allocate(iv.length + encrypted.length);
+        byteBuffer.put(iv);
+        byteBuffer.put(encrypted);
+        
+        return Base64.getEncoder().encodeToString(byteBuffer.array());
     }
     
     /**
-     * Decrypt data using the two-part passkey
+     * Decrypt data using AES/GCM with the two-part passkey
+     * Expects Base64-encoded: IV (12 bytes) + encrypted data + authentication tag
      */
     public static String decrypt(String encryptedData, String passkey) throws Exception {
         SecretKey key = createKey(passkey);
+        
+        // Decode from Base64
+        byte[] decoded = Base64.getDecoder().decode(encryptedData);
+        
+        // Extract IV and encrypted data
+        ByteBuffer byteBuffer = ByteBuffer.wrap(decoded);
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        byteBuffer.get(iv);
+        byte[] encrypted = new byte[byteBuffer.remaining()];
+        byteBuffer.get(encrypted);
+        
+        // Initialize cipher with GCM parameters
         Cipher cipher = Cipher.getInstance(ALGORITHM);
-        cipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+        cipher.init(Cipher.DECRYPT_MODE, key, gcmSpec);
+        
+        // Decrypt and verify authentication tag
+        byte[] decrypted = cipher.doFinal(encrypted);
         return new String(decrypted, StandardCharsets.UTF_8);
     }
     
