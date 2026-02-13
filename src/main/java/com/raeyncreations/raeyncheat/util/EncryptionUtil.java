@@ -82,9 +82,9 @@ public class EncryptionUtil {
             String compactHash = uuidHashB64.substring(0, Math.min(32, uuidHashB64.length()));
             
             return getDeobfuscatedPermanentKey() + ":" + compactHash;
-        } catch (Exception e) {
-            // Fallback to original method if hashing fails (should never happen with SHA-256)
-            return getDeobfuscatedPermanentKey() + ":" + playerUUID;
+        } catch (java.security.NoSuchAlgorithmException e) {
+            // SHA-256 should always be available, this is a critical error
+            throw new RuntimeException("CRITICAL: SHA-256 algorithm not available. Cannot generate secure passkey.", e);
         }
     }
     

@@ -153,15 +153,17 @@ public class RaeYNCheat {
             } catch (Exception e) {
                 LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
             } finally {
-                // Reset flag after 15 seconds to allow retry if needed
-                new Thread(() -> {
+                // Reset flag after 15 seconds using a daemon thread
+                Thread resetThread = new Thread(() -> {
                     try {
                         Thread.sleep(15000);
                         midnightRefreshInProgress.set(false);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }
-                }).start();
+                }, "CheckSum-Refresh-Reset");
+                resetThread.setDaemon(true);
+                resetThread.start();
             }
         }
     }
