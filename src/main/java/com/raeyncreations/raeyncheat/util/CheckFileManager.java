@@ -185,6 +185,18 @@ public class CheckFileManager {
     }
     
     /**
+     * Read encrypted CheckSum file without decryption (for comparison)
+     */
+    public String readEncryptedCheckSum() throws Exception {
+        Path checkSumFile = configDir.resolve("CheckSum");
+        if (!Files.exists(checkSumFile)) {
+            throw new FileNotFoundException("CheckSum file not found");
+        }
+        
+        return Files.readString(checkSumFile);
+    }
+    
+    /**
      * Read and decrypt CheckSum file
      */
     public String readCheckSum(String playerUUID, String playerUsername) throws Exception {

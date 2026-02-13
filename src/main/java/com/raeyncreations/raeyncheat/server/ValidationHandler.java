@@ -66,8 +66,8 @@ public class ValidationHandler {
             RaeYNCheat.LOGGER.info("Generating server checksum for player {} using validated passkey...", playerUsername);
             checkFileManager.generateServerCheckFile(playerUUID, playerUsername, clientPasskey);
             
-            // Read the generated server checksum
-            String serverChecksum = checkFileManager.readCheckSum(playerUUID, playerUsername);
+            // Read the generated server checksum (encrypted, for direct comparison)
+            String serverChecksum = checkFileManager.readEncryptedCheckSum();
             
             // Validate both checksums are not null or empty
             if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
