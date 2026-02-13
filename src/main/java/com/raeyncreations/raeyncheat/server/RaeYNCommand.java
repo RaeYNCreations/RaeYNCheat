@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.raeyncreations.raeyncheat.RaeYNCheat;
+import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
 import com.raeyncreations.raeyncheat.util.PasskeyLogger;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -161,6 +162,19 @@ public class RaeYNCommand {
         }
     }
     
+    /**
+     * Helper method to format duration value as human-readable text
+     */
+    private static String formatDuration(int duration) {
+        if (duration == -1) {
+            return "PERMANENT BAN";
+        } else if (duration == 0) {
+            return "WARNING only";
+        } else {
+            return duration + " seconds";
+        }
+    }
+    
     private static int setChecksumStep(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         int index = IntegerArgumentType.getInteger(context, "index");
@@ -172,17 +186,8 @@ public class RaeYNCommand {
             if (success) {
                 RaeYNCheat.saveConfig();
                 
-                String durationText;
-                if (duration == -1) {
-                    durationText = "PERMANENT BAN";
-                } else if (duration == 0) {
-                    durationText = "WARNING only";
-                } else {
-                    durationText = duration + " seconds";
-                }
-                
                 source.sendSuccess(() -> Component.literal(
-                    "Checksum punishment step " + index + " set to: " + durationText
+                    "Checksum punishment step " + index + " set to: " + formatDuration(duration)
                 ), true);
                 
                 RaeYNCheat.LOGGER.info("Admin {} set checksum step {} to {}", 
@@ -206,22 +211,13 @@ public class RaeYNCommand {
         try {
             int duration = RaeYNCheat.getConfig().getChecksumPunishmentStep(index);
             
-            if (duration == -999) {
+            if (RaeYNCheatConfig.isInvalidStepIndex(duration)) {
                 source.sendFailure(Component.literal("Invalid step index: " + index));
                 return 0;
             }
             
-            String durationText;
-            if (duration == -1) {
-                durationText = "PERMANENT BAN";
-            } else if (duration == 0) {
-                durationText = "WARNING only";
-            } else {
-                durationText = duration + " seconds";
-            }
-            
             source.sendSuccess(() -> Component.literal(
-                "Checksum punishment step " + index + ": " + durationText
+                "Checksum punishment step " + index + ": " + formatDuration(duration)
             ), false);
             return 1;
         } catch (Exception e) {
@@ -256,17 +252,8 @@ public class RaeYNCommand {
             if (success) {
                 RaeYNCheat.saveConfig();
                 
-                String durationText;
-                if (duration == -1) {
-                    durationText = "PERMANENT BAN";
-                } else if (duration == 0) {
-                    durationText = "WARNING only";
-                } else {
-                    durationText = duration + " seconds";
-                }
-                
                 source.sendSuccess(() -> Component.literal(
-                    "Passkey punishment step " + index + " set to: " + durationText
+                    "Passkey punishment step " + index + " set to: " + formatDuration(duration)
                 ), true);
                 
                 RaeYNCheat.LOGGER.info("Admin {} set passkey step {} to {}", 
@@ -290,22 +277,13 @@ public class RaeYNCommand {
         try {
             int duration = RaeYNCheat.getConfig().getPasskeyPunishmentStep(index);
             
-            if (duration == -999) {
+            if (RaeYNCheatConfig.isInvalidStepIndex(duration)) {
                 source.sendFailure(Component.literal("Invalid step index: " + index));
                 return 0;
             }
             
-            String durationText;
-            if (duration == -1) {
-                durationText = "PERMANENT BAN";
-            } else if (duration == 0) {
-                durationText = "WARNING only";
-            } else {
-                durationText = duration + " seconds";
-            }
-            
             source.sendSuccess(() -> Component.literal(
-                "Passkey punishment step " + index + ": " + durationText
+                "Passkey punishment step " + index + ": " + formatDuration(duration)
             ), false);
             return 1;
         } catch (Exception e) {

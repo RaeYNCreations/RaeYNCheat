@@ -24,6 +24,9 @@ public class RaeYNCheatConfig {
     public int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
     public boolean enableSensitivityChecks = true;
     
+    // Constants
+    private static final int INVALID_STEP_INDEX = -999;
+    
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     public static RaeYNCheatConfig load(Path configPath) {
@@ -174,6 +177,15 @@ public class RaeYNCheatConfig {
     
     /**
      * Internal method to set a punishment step
+     * @param steps The list of punishment steps to modify
+     * @param index The 0-based index of the step
+     * @param duration The duration in seconds
+     * @param type The type name for error messages
+     * @return true if successful, false if invalid
+     * 
+     * Note: If the index is beyond the current list size, the list will be extended
+     * with 0 (WARNING) values up to that index. This allows gradual configuration
+     * of punishment steps without requiring all steps to be defined at once.
      */
     private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
         // Validate index (0-based, max 29 for 30 total steps)
@@ -188,7 +200,7 @@ public class RaeYNCheatConfig {
             return false;
         }
         
-        // Extend list if necessary
+        // Extend list with WARNING (0) values if necessary
         while (steps.size() <= index) {
             steps.add(0);
         }
@@ -237,7 +249,7 @@ public class RaeYNCheatConfig {
      */
     public int getChecksumPunishmentStep(int index) {
         if (index < 0 || index >= punishmentSteps.size()) {
-            return -999; // Invalid marker
+            return INVALID_STEP_INDEX;
         }
         return punishmentSteps.get(index);
     }
@@ -247,8 +259,15 @@ public class RaeYNCheatConfig {
      */
     public int getPasskeyPunishmentStep(int index) {
         if (index < 0 || index >= passkeyPunishmentSteps.size()) {
-            return -999; // Invalid marker
+            return INVALID_STEP_INDEX;
         }
         return passkeyPunishmentSteps.get(index);
+    }
+    
+    /**
+     * Check if a step index is the invalid marker
+     */
+    public static boolean isInvalidStepIndex(int value) {
+        return value == INVALID_STEP_INDEX;
     }
 }
