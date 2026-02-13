@@ -23,10 +23,13 @@ public class CheckFileManager {
     
     /**
      * Validate that a client's passkey matches the server's expected passkey
+     * Uses constant-time comparison to prevent timing attacks
      */
     public boolean validatePasskey(String clientPasskey, String playerUUID, String playerUsername) {
         String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
-        boolean isValid = expectedPasskey.equals(clientPasskey);
+        
+        // Use constant-time comparison to prevent timing attacks
+        boolean isValid = constantTimeEquals(clientPasskey, expectedPasskey);
         
         if (isValid) {
             PasskeyLogger.logValidationSuccess(playerUsername, playerUUID, clientPasskey, expectedPasskey);
@@ -36,6 +39,22 @@ public class CheckFileManager {
         }
         
         return isValid;
+    }
+    
+    /**
+     * Constant-time string comparison to prevent timing attacks
+     */
+    private boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        
+        // Convert to byte arrays for constant-time comparison
+        byte[] aBytes = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bBytes = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        
+        // Use MessageDigest.isEqual for constant-time comparison
+        return java.security.MessageDigest.isEqual(aBytes, bBytes);
     }
     
     /**

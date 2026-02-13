@@ -15,6 +15,10 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  */
 public record SyncPacket(String passkey, String checksum) implements CustomPacketPayload {
     
+    // Maximum allowed lengths to prevent DoS attacks
+    private static final int MAX_PASSKEY_LENGTH = 512;
+    private static final int MAX_CHECKSUM_LENGTH = 4096;
+    
     public static final Type<SyncPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(RaeYNCheat.MOD_ID, "sync"));
     
     public static final StreamCodec<ByteBuf, SyncPacket> STREAM_CODEC = StreamCodec.composite(
@@ -23,13 +27,16 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             @Override
             public String decode(ByteBuf buffer) {
                 FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
-                return buf.readUtf(32767);
+                return buf.readUtf(MAX_PASSKEY_LENGTH);
             }
             
             @Override
             public void encode(ByteBuf buffer, String value) {
                 FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
-                buf.writeUtf(value, 32767);
+                if (value.length() > MAX_PASSKEY_LENGTH) {
+                    throw new IllegalArgumentException("Passkey exceeds maximum length of " + MAX_PASSKEY_LENGTH);
+                }
+                buf.writeUtf(value, MAX_PASSKEY_LENGTH);
             }
         },
         SyncPacket::passkey,
@@ -38,13 +45,16 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             @Override
             public String decode(ByteBuf buffer) {
                 FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
-                return buf.readUtf(32767);
+                return buf.readUtf(MAX_CHECKSUM_LENGTH);
             }
             
             @Override
             public void encode(ByteBuf buffer, String value) {
                 FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
-                buf.writeUtf(value, 32767);
+                if (value.length() > MAX_CHECKSUM_LENGTH) {
+                    throw new IllegalArgumentException("Checksum exceeds maximum length of " + MAX_CHECKSUM_LENGTH);
+                }
+                buf.writeUtf(value, MAX_CHECKSUM_LENGTH);
             }
         },
         SyncPacket::checksum,

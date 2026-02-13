@@ -15,11 +15,12 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Mod(value = RaeYNCheat.MOD_ID, dist = Dist.CLIENT)
 public class RaeYNCheatClient {
     
-    private static volatile CheckFileManager checkFileManager;
+    private static final AtomicReference<CheckFileManager> checkFileManager = new AtomicReference<>();
     
     public RaeYNCheatClient(IEventBus modEventBus) {
         modEventBus.addListener(this::clientSetup);
@@ -43,20 +44,21 @@ public class RaeYNCheatClient {
             }
             
             // Initialize check file manager only if directory exists
-            checkFileManager = new CheckFileManager(configDir, modsDir);
+            CheckFileManager manager = new CheckFileManager(configDir, modsDir);
+            checkFileManager.set(manager);
             
             // Generate check file on client boot
             generateClientCheckFile();
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error during client initialization", e);
             RaeYNCheat.LOGGER.warn("Client check file generation is DISABLED due to initialization failure");
-            checkFileManager = null;
+            checkFileManager.set(null);
         }
     }
     
     private void onPlayerLoggedIn(final ClientPlayerNetworkEvent.LoggingIn event) {
         // Regenerate check file and send to server when joining
-        if (checkFileManager != null) {
+        if (checkFileManager.get() != null) {
             generateClientCheckFileAndSync();
         } else {
             RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping client check file generation and sync");
@@ -65,7 +67,8 @@ public class RaeYNCheatClient {
     
     private void generateClientCheckFile() {
         // Only generate if checkFileManager is initialized
-        if (checkFileManager == null) {
+        CheckFileManager manager = checkFileManager.get();
+        if (manager == null) {
             RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation");
             return;
         }
@@ -75,7 +78,7 @@ public class RaeYNCheatClient {
             String playerUsername = getPlayerUsername();
             
             RaeYNCheat.LOGGER.info("Generating client check file...");
-            checkFileManager.generateClientCheckFile(playerUUID, playerUsername);
+            manager.generateClientCheckFile(playerUUID, playerUsername);
             RaeYNCheat.LOGGER.info("Client check file generated successfully");
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error generating client check file", e);
@@ -84,7 +87,8 @@ public class RaeYNCheatClient {
     
     private void generateClientCheckFileAndSync() {
         // Only generate and sync if checkFileManager is initialized
-        if (checkFileManager == null) {
+        CheckFileManager manager = checkFileManager.get();
+        if (manager == null) {
             RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation and sync");
             return;
         }
@@ -94,7 +98,7 @@ public class RaeYNCheatClient {
             String playerUsername = getPlayerUsername();
             
             RaeYNCheat.LOGGER.info("Generating client check file...");
-            checkFileManager.generateClientCheckFile(playerUUID, playerUsername);
+            manager.generateClientCheckFile(playerUUID, playerUsername);
             RaeYNCheat.LOGGER.info("Client check file generated successfully");
             
             // Read the generated CheckSum file
@@ -168,6 +172,6 @@ public class RaeYNCheatClient {
     }
     
     public static CheckFileManager getCheckFileManager() {
-        return checkFileManager;
+        return checkFileManager.get();
     }
 }
