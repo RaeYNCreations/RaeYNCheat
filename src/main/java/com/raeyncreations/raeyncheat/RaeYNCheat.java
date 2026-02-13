@@ -14,10 +14,13 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +37,10 @@ public class RaeYNCheat {
     private static final Map<UUID, Integer> checksumViolations = new HashMap<>();
     private static final Map<UUID, Integer> passkeyViolations = new HashMap<>();
     
+    // Midnight auto-refresh tracking
+    private static LocalDate lastRefreshDate = null;
+    private static boolean midnightRefreshEnabled = true;
+    
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
         
@@ -41,6 +48,7 @@ public class RaeYNCheat {
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(this::onServerTick);
         
         // Register player connection events for passkey logging
         NeoForge.EVENT_BUS.addListener(PlayerConnectionHandler::onPlayerLoggedIn);
@@ -75,8 +83,37 @@ public class RaeYNCheat {
             LOGGER.info("Generating server CheckSum_init file...");
             checkFileManager.generateServerInitCheckFile();
             LOGGER.info("Server CheckSum_init file generated successfully");
+            lastRefreshDate = LocalDate.now(); // Track initial generation
         } catch (Exception e) {
             LOGGER.error("Error generating server CheckSum_init file", e);
+        }
+    }
+    
+    /**
+     * Check every server tick for midnight to auto-refresh CheckSum_init
+     */
+    private void onServerTick(final ServerTickEvent.Pre event) {
+        if (!midnightRefreshEnabled || checkFileManager == null) {
+            return;
+        }
+        
+        LocalDate today = LocalDate.now();
+        
+        // Check if it's a new day and we haven't refreshed today yet
+        if (lastRefreshDate == null || !lastRefreshDate.equals(today)) {
+            LocalTime now = LocalTime.now();
+            
+            // Check if it's past midnight (within first minute of the day)
+            if (now.getHour() == 0 && now.getMinute() == 0) {
+                try {
+                    LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
+                    checkFileManager.generateServerInitCheckFile();
+                    lastRefreshDate = today;
+                    LOGGER.info("CheckSum_init file auto-refreshed successfully");
+                } catch (Exception e) {
+                    LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
+                }
+            }
         }
     }
     
