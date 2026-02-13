@@ -78,7 +78,7 @@ public class RaeYNCheat {
             config = RaeYNCheatConfig.load(configFilePath);
             
             // Validate mods_client directory exists
-            if (modsClientDir == null || !java.nio.file.Files.exists(modsClientDir)) {
+            if (!java.nio.file.Files.exists(modsClientDir)) {
                 LOGGER.warn("mods_client directory does not exist at: {}. Mod verification is DISABLED.", modsClientDir);
                 LOGGER.warn("To enable mod verification, create the mods_client directory and add expected client mods.");
                 return; // Exit early, checkFileManager remains null

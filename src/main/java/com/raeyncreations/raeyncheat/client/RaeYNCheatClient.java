@@ -33,7 +33,7 @@ public class RaeYNCheatClient {
             Path modsDir = FMLPaths.GAMEDIR.get().resolve("mods");
             
             // Validate mods directory exists
-            if (modsDir == null || !java.nio.file.Files.exists(modsDir)) {
+            if (!java.nio.file.Files.exists(modsDir)) {
                 RaeYNCheat.LOGGER.warn("mods directory does not exist at: {}. Client check file generation is DISABLED.", modsDir);
                 return; // Exit early, checkFileManager remains null
             }
