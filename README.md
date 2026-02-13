@@ -125,6 +125,31 @@ Manually punish a player for passkey verification failures.
 - More aggressive by default since passkey failures are more suspicious
 - Logs the manual violation to `logs/cheat.log` with admin username and punishment details
 
+### `/raeyn cheat checksum step [index] [duration]`
+Manage checksum punishment steps.
+- Requires operator permission level 2
+- **No arguments**: Lists all current checksum punishment steps
+- **With index only**: Shows the specific step at that index
+- **With index and duration**: Sets the punishment step to the specified duration
+  - `index`: Step number (0-29, where 0 is first violation, 1 is second, etc.)
+  - `duration`: 
+    - `-1` = Permanent ban
+    - `0` = Warning only (no kick/ban)
+    - Positive number = Temporary ban duration in seconds
+  - Changes are saved immediately to config file
+  - Example: `/raeyn cheat checksum step 0 60` sets first violation to 60 second ban
+  - Example: `/raeyn cheat checksum step 9 -1` sets 10th violation to permanent ban
+
+### `/raeyn cheat passkey step [index] [duration]`
+Manage passkey punishment steps.
+- Requires operator permission level 2
+- **No arguments**: Lists all current passkey punishment steps
+- **With index only**: Shows the specific step at that index
+- **With index and duration**: Sets the punishment step to the specified duration
+  - Same parameters as checksum step command
+  - Example: `/raeyn cheat passkey step 0 300` sets first violation to 5 minute ban
+  - Example: `/raeyn cheat passkey step 4 -1` sets 5th violation to permanent ban
+
 ## Passkey Event Logging
 
 All passkey-related events are automatically logged to `logs/cheat.log` for comprehensive audit trails.
