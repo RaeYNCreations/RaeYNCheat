@@ -5,7 +5,7 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 ## Features
 
 - **Client-side mod verification** with CRC32, SHA-256, and MD5 checksums
-- **Two-part passkey system** with date-based permanent key ("2003, December 15th") and player UUID
+- **Two-part passkey system** - Secret, sorry!
 - **Dual violation tracking** - separate systems for checksum and passkey violations
 - **Encryption and obfuscation** to prevent tampering
 - **Automatic check file generation** on each client launch and server connection
@@ -26,7 +26,7 @@ Branch naming convention allows for future version ports (e.g., `fabric-1.21.8`,
 
 ### Client Side
 
-1. On game launch, the client generates a two-part passkey (date-based permanent key + player UUID)
+1. On game launch, the client generates a two-part passkey
 2. Scans all JAR files in the `mods` folder
 3. Calculates CRC/hash/checksum for each JAR
 4. Creates an aggregate checksum of all mod checksums
@@ -125,7 +125,7 @@ Manually punish a player for passkey verification failures.
 
 ## Security Features
 
-- **Two-part passkey**: Date-based permanent key ("2003, December 15th") + player UUID
+- **Two-part passkey**: Secret!
 - **Passkey obfuscation**: Base64 encoding and string reversal to hide permanent key
 - **Passkey validation**: Server validates client passkeys on connection
 - **XOR obfuscation**: Prevents simple reading of encrypted data
