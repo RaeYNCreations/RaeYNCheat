@@ -85,14 +85,14 @@ public class RaeYNCheat {
             LOGGER.info("Server CheckSum_init file generated successfully");
             lastRefreshDate = LocalDate.now(); // Track initial generation
         } catch (IllegalStateException e) {
-            LOGGER.error("CheckSum_init generation failed - state error: {}", e.getMessage());
-            LOGGER.warn("Server will continue but mod verification may not work properly");
+            LOGGER.error("CheckSum_init generation failed - invalid state: {}", e.getMessage());
+            LOGGER.warn("Server will continue but mod verification is DISABLED. Issue: {}", e.getMessage());
         } catch (FileNotFoundException e) {
             LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
-            LOGGER.warn("Please ensure mods_client directory exists");
+            LOGGER.warn("Server will continue but mod verification is DISABLED. Please ensure mods_client directory exists");
         } catch (Exception e) {
             LOGGER.error("Error generating server CheckSum_init file", e);
-            LOGGER.warn("Server will continue but mod verification may not work properly");
+            LOGGER.warn("Server will continue but mod verification is DISABLED due to unexpected error");
         }
     }
     
@@ -110,8 +110,8 @@ public class RaeYNCheat {
         if (lastRefreshDate == null || !lastRefreshDate.equals(today)) {
             LocalTime now = LocalTime.now();
             
-            // Check if it's past midnight (within first minute of the day)
-            if (now.getHour() == 0 && now.getMinute() == 0) {
+            // Check if it's past midnight (between 00:00 and 00:05 to ensure we don't miss it)
+            if (now.getHour() == 0 && now.getMinute() < 5) {
                 try {
                     LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
                     checkFileManager.generateServerInitCheckFile();

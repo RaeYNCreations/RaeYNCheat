@@ -28,6 +28,9 @@ public class PlayerConnectionHandler {
             
             RaeYNCheat.LOGGER.info("Player {} (UUID: {}) connected to server", playerUsername, playerUUID);
             
+            // Generate passkey once for error logging
+            String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
+            
             try {
                 // Generate server-side check file for this player
                 // Note: generateServerCheckFile already logs the passkey generation internally
@@ -40,20 +43,17 @@ public class PlayerConnectionHandler {
             } catch (FileNotFoundException e) {
                 RaeYNCheat.LOGGER.error("CheckSum_init file not found when generating check file for player {}: {}", 
                     playerUsername, e.getMessage());
-                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
                 PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
                     "CHECKSUM_INIT_NOT_FOUND", 
                     "CheckSum_init file not found - server may not have generated it yet", e);
             } catch (IllegalStateException e) {
                 RaeYNCheat.LOGGER.error("Invalid state when generating check file for player {}: {}", 
                     playerUsername, e.getMessage());
-                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
                 PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
                     "INVALID_STATE", 
                     "CheckSum_init file may be corrupted or empty: " + e.getMessage(), e);
             } catch (Exception e) {
                 RaeYNCheat.LOGGER.error("Failed to generate server check file for player " + playerUsername, e);
-                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
                 PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
                     "SERVER_CHECK_FILE_GENERATION", 
                     "Failed to generate server check file", e);

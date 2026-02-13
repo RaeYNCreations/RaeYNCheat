@@ -59,9 +59,13 @@ public class ChecksumUtil {
         }
         
         File[] jarFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
-        if (jarFiles == null || jarFiles.length == 0) {
+        if (jarFiles == null) {
+            throw new FileNotFoundException("Unable to list files in directory: " + directory);
+        }
+        
+        if (jarFiles.length == 0) {
             System.err.println("Warning: No JAR files found in directory: " + directory);
-            return checksums; // Return empty list instead of null
+            return checksums; // Return empty list
         }
         
         // Sort files by name for consistent ordering
