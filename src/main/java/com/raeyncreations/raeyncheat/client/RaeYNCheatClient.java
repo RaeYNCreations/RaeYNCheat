@@ -113,8 +113,8 @@ public class RaeYNCheatClient {
             
             String clientChecksum = Files.readString(checkSumFile).trim();
             
-            // Validate checksum is not null or empty
-            if (clientChecksum == null || clientChecksum.isEmpty()) {
+            // Validate checksum is not empty (trim() never returns null)
+            if (clientChecksum.isEmpty()) {
                 RaeYNCheat.LOGGER.error("Generated CheckSum file is empty or invalid");
                 RaeYNCheat.LOGGER.error("Cannot sync with server - invalid checksum");
                 return;
@@ -123,8 +123,8 @@ public class RaeYNCheatClient {
             // Generate passkey
             String clientPasskey = EncryptionUtil.generatePasskey(playerUUID).trim();
             
-            // Validate passkey is not null or empty
-            if (clientPasskey == null || clientPasskey.isEmpty()) {
+            // Validate passkey is not empty (trim() never returns null)
+            if (clientPasskey.isEmpty()) {
                 RaeYNCheat.LOGGER.error("Generated passkey is empty or invalid");
                 RaeYNCheat.LOGGER.error("Cannot sync with server - invalid passkey");
                 return;

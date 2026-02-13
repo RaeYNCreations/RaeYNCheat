@@ -174,7 +174,7 @@ public class CheckFileManager {
         
         String obfuscated = Files.readString(checkSumInitFile).trim();
         
-        if (obfuscated == null || obfuscated.isEmpty()) {
+        if (obfuscated.isEmpty()) {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         

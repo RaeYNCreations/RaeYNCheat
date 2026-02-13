@@ -224,7 +224,8 @@ public class RaeYNCheat {
         // Use atomic merge operation to ensure thread-safety
         int violations = checksumViolations.merge(playerUUID, 1, Integer::sum);
         
-        // Synchronize config access to prevent race conditions
+        // Use local copy to prevent NPE if config is set to null by another thread
+        // Note: RaeYNCheatConfig itself is thread-safe (uses CopyOnWriteArrayList)
         RaeYNCheatConfig localConfig = config;
         if (localConfig != null) {
             int duration = localConfig.getPunishmentDuration(violations);
@@ -239,7 +240,8 @@ public class RaeYNCheat {
         // Use atomic merge operation to ensure thread-safety
         int violations = passkeyViolations.merge(playerUUID, 1, Integer::sum);
         
-        // Synchronize config access to prevent race conditions
+        // Use local copy to prevent NPE if config is set to null by another thread
+        // Note: RaeYNCheatConfig itself is thread-safe (uses CopyOnWriteArrayList)
         RaeYNCheatConfig localConfig = config;
         if (localConfig != null) {
             int duration = localConfig.getPasskeyPunishmentDuration(violations);
