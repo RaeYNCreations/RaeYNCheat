@@ -1,0 +1,143 @@
+package com.raeyncreations.raeyncheat.util;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
+
+public class EncryptionUtil {
+    
+    // Permanent key in date format: "2003, December 15th"
+    // Split into multiple parts to make it harder to find in decompiled code
+    private static final String PERMANENT_KEY_PART1 = "2003";
+    private static final String PERMANENT_KEY_PART2 = ", ";
+    private static final String PERMANENT_KEY_PART3 = "December";
+    private static final String PERMANENT_KEY_PART4 = " ";
+    private static final String PERMANENT_KEY_PART5 = "15th";
+    private static final String ALGORITHM = "AES";
+    
+    // Reconstruct the permanent key at runtime
+    private static String reconstructPermanentKey() {
+        // Use StringBuilder to make it harder to track
+        StringBuilder sb = new StringBuilder();
+        sb.append(PERMANENT_KEY_PART1);
+        sb.append(PERMANENT_KEY_PART2);
+        sb.append(PERMANENT_KEY_PART3);
+        sb.append(PERMANENT_KEY_PART4);
+        sb.append(PERMANENT_KEY_PART5);
+        return sb.toString();
+    }
+    
+    /**
+     * Get the obfuscated permanent key
+     */
+    private static String getPermanentKey() {
+        // Simple obfuscation using Base64 and reverse
+        String key = reconstructPermanentKey();
+        String reversed = new StringBuilder(key).reverse().toString();
+        return Base64.getEncoder().encodeToString(reversed.getBytes(StandardCharsets.UTF_8));
+    }
+    
+    /**
+     * Get the deobfuscated permanent key for use
+     */
+    private static String getDeobfuscatedPermanentKey() {
+        try {
+            String decoded = new String(Base64.getDecoder().decode(getPermanentKey()), StandardCharsets.UTF_8);
+            return new StringBuilder(decoded).reverse().toString();
+        } catch (Exception e) {
+            return reconstructPermanentKey(); // Fallback to reconstructed key if deobfuscation fails
+        }
+    }
+    
+    /**
+     * Generate a two-part passkey from permanent key and player UUID
+     */
+    public static String generatePasskey(String playerUUID) {
+        return getDeobfuscatedPermanentKey() + ":" + playerUUID;
+    }
+    
+    /**
+     * Create encryption key from passkey
+     */
+    private static SecretKey createKey(String passkey) throws Exception {
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        byte[] key = sha.digest(passkey.getBytes(StandardCharsets.UTF_8));
+        // Use first 16 bytes for AES-128
+        byte[] keyBytes = new byte[16];
+        System.arraycopy(key, 0, keyBytes, 0, 16);
+        return new SecretKeySpec(keyBytes, ALGORITHM);
+    }
+    
+    /**
+     * Encrypt data using the two-part passkey
+     */
+    public static String encrypt(String data, String passkey) throws Exception {
+        SecretKey key = createKey(passkey);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, key);
+        byte[] encrypted = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(encrypted);
+    }
+    
+    /**
+     * Decrypt data using the two-part passkey
+     */
+    public static String decrypt(String encryptedData, String passkey) throws Exception {
+        SecretKey key = createKey(passkey);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        return new String(decrypted, StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * Obfuscate a string using simple XOR obfuscation
+     */
+    public static String obfuscate(String data) {
+        byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+        byte[] obfuscated = new byte[bytes.length];
+        
+        // Simple XOR with a pattern (use deobfuscated key)
+        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
+        for (int i = 0; i < bytes.length; i++) {
+            obfuscated[i] = (byte) (bytes[i] ^ pattern[i % pattern.length]);
+        }
+        
+        return Base64.getEncoder().encodeToString(obfuscated);
+    }
+    
+    /**
+     * Deobfuscate a string
+     */
+    public static String deobfuscate(String obfuscatedData) {
+        byte[] obfuscated = Base64.getDecoder().decode(obfuscatedData);
+        byte[] deobfuscated = new byte[obfuscated.length];
+        
+        // Reverse XOR (use deobfuscated key)
+        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
+        for (int i = 0; i < obfuscated.length; i++) {
+            deobfuscated[i] = (byte) (obfuscated[i] ^ pattern[i % pattern.length]);
+        }
+        
+        return new String(deobfuscated, StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * Apply both obfuscation and encryption
+     */
+    public static String obfuscateAndEncrypt(String data, String passkey) throws Exception {
+        String obfuscated = obfuscate(data);
+        return encrypt(obfuscated, passkey);
+    }
+    
+    /**
+     * Decrypt and deobfuscate
+     */
+    public static String decryptAndDeobfuscate(String data, String passkey) throws Exception {
+        String decrypted = decrypt(data, passkey);
+        return deobfuscate(decrypted);
+    }
+}

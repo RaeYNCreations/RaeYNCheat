@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# Eclipse
+.settings/
+.classpath
+.project
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VSCode
+.vscode/
+
+# Fabric
+run/
+logs/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Misc
+*.log
+*.swp
+*.bak
+*~
+
+# ProGuard
+proguard/
+proguard_map.txt
+proguard_seeds.txt
+proguard_usage.txt
+

@@ -1,0 +1,103 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.gradle.userdev' version '7.0.145'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// ProGuard configuration for obfuscation
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.guardsquare:proguard-gradle:7.4.2'
+    }
+}
+
+runs {
+    configureEach {
+        systemProperty 'forge.logging.markers', 'REGISTRIES'
+        systemProperty 'forge.logging.console.level', 'debug'
+    }
+
+    client {
+        systemProperty 'forge.enabledGameTestNamespaces', mod_id
+    }
+
+    server {
+        systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        programArgument '--nogui'
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:${neoforge_version}"
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+        minecraft_version: minecraft_version,
+        minecraft_version_range: minecraft_version_range,
+        neoforge_version: neoforge_version,
+        neoforge_version_range: neoforge_version_range,
+        loader_version_range: loader_version_range,
+        mod_id: mod_id,
+        mod_name: mod_name,
+        mod_license: mod_license,
+        mod_version: mod_version,
+        mod_authors: mod_authors,
+        mod_description: mod_description
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
+
+// ProGuard obfuscation task
+task proguard(type: proguard.gradle.ProGuardTask, dependsOn: jar) {
+    injars jar.archiveFile.get().asFile
+    outjars file("${buildDir}/libs/${mod_id}-${version}-obfuscated.jar")
+    
+    // Include Java runtime
+    libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
+    
+    // Include dependencies
+    configurations.runtimeClasspath.each { file ->
+        libraryjars file, filter: '!META-INF/**'
+    }
+    
+    configuration file('proguard-rules.pro')
+}
+
+// Make build depend on proguard
+build.dependsOn proguard
