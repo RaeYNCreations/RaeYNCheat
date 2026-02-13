@@ -9,14 +9,36 @@ import java.util.Base64;
 
 public class EncryptionUtil {
     
-    private static final String PERMANENT_KEY = "4pp7354Uc3!";
+    // Permanent key in date format: "2003, December 15th"
+    private static final String PERMANENT_KEY_RAW = "2003, December 15th";
     private static final String ALGORITHM = "AES";
+    
+    /**
+     * Get the obfuscated permanent key
+     */
+    private static String getPermanentKey() {
+        // Simple obfuscation using Base64 and reverse
+        String reversed = new StringBuilder(PERMANENT_KEY_RAW).reverse().toString();
+        return Base64.getEncoder().encodeToString(reversed.getBytes(StandardCharsets.UTF_8));
+    }
+    
+    /**
+     * Get the deobfuscated permanent key for use
+     */
+    private static String getDeobfuscatedPermanentKey() {
+        try {
+            String decoded = new String(Base64.getDecoder().decode(getPermanentKey()), StandardCharsets.UTF_8);
+            return new StringBuilder(decoded).reverse().toString();
+        } catch (Exception e) {
+            return PERMANENT_KEY_RAW; // Fallback to raw key if deobfuscation fails
+        }
+    }
     
     /**
      * Generate a two-part passkey from permanent key and player UUID
      */
     public static String generatePasskey(String playerUUID) {
-        return PERMANENT_KEY + ":" + playerUUID;
+        return getDeobfuscatedPermanentKey() + ":" + playerUUID;
     }
     
     /**
@@ -60,8 +82,8 @@ public class EncryptionUtil {
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
         byte[] obfuscated = new byte[bytes.length];
         
-        // Simple XOR with a pattern
-        byte[] pattern = PERMANENT_KEY.getBytes(StandardCharsets.UTF_8);
+        // Simple XOR with a pattern (use deobfuscated key)
+        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
         for (int i = 0; i < bytes.length; i++) {
             obfuscated[i] = (byte) (bytes[i] ^ pattern[i % pattern.length]);
         }
@@ -76,8 +98,8 @@ public class EncryptionUtil {
         byte[] obfuscated = Base64.getDecoder().decode(obfuscatedData);
         byte[] deobfuscated = new byte[obfuscated.length];
         
-        // Reverse XOR
-        byte[] pattern = PERMANENT_KEY.getBytes(StandardCharsets.UTF_8);
+        // Reverse XOR (use deobfuscated key)
+        byte[] pattern = getDeobfuscatedPermanentKey().getBytes(StandardCharsets.UTF_8);
         for (int i = 0; i < obfuscated.length; i++) {
             deobfuscated[i] = (byte) (obfuscated[i] ^ pattern[i % pattern.length]);
         }

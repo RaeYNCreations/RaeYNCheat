@@ -11,8 +11,18 @@ import java.util.List;
 
 public class RaeYNCheatConfig {
     
+    // Checksum violation settings
     public boolean enablePunishmentSystem = true;
     public List<Integer> punishmentSteps = createDefaultPunishmentSteps();
+    
+    // Passkey violation settings
+    public boolean enablePasskeyPunishmentSystem = true;
+    public List<Integer> passkeyPunishmentSteps = createDefaultPasskeyPunishmentSteps();
+    
+    // Sensitivity settings for false positive detection
+    public int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
+    public int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
+    public boolean enableSensitivityChecks = true;
     
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
@@ -48,25 +58,45 @@ public class RaeYNCheatConfig {
      * Validate configuration values
      */
     private void validate() {
-        // Validate punishment steps
-        for (int i = 0; i < punishmentSteps.size(); i++) {
-            int step = punishmentSteps.get(i);
+        // Validate checksum punishment steps
+        validatePunishmentSteps(punishmentSteps, "punishment");
+        
+        // Validate passkey punishment steps
+        validatePunishmentSteps(passkeyPunishmentSteps, "passkey punishment");
+        
+        // Validate sensitivity thresholds
+        if (sensitivityThresholdLow < 0) {
+            System.err.println("Invalid sensitivityThresholdLow: " + sensitivityThresholdLow + ". Must be >= 0.");
+            sensitivityThresholdLow = 2;
+        }
+        if (sensitivityThresholdHigh < sensitivityThresholdLow) {
+            System.err.println("Invalid sensitivityThresholdHigh: " + sensitivityThresholdHigh + ". Must be >= sensitivityThresholdLow.");
+            sensitivityThresholdHigh = 10;
+        }
+    }
+    
+    /**
+     * Validate a list of punishment steps
+     */
+    private void validatePunishmentSteps(List<Integer> steps, String type) {
+        for (int i = 0; i < steps.size(); i++) {
+            int step = steps.get(i);
             if (step < -1) {
-                System.err.println("Invalid punishment step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
-                punishmentSteps.set(i, 0);
+                System.err.println("Invalid " + type + " step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
+                steps.set(i, 0);
             }
             // Only -1 and 0 are allowed as non-positive values
-            if (step == -1 || step >= 0) {
-                // Valid
-            } else {
-                System.err.println("Invalid punishment step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
-                punishmentSteps.set(i, 0);
+            if (step != -1 && step < 0) {
+                System.err.println("Invalid " + type + " step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
+                steps.set(i, 0);
             }
         }
         
         // Limit to 30 steps
-        if (punishmentSteps.size() > 30) {
-            punishmentSteps = punishmentSteps.subList(0, 30);
+        if (steps.size() > 30) {
+            while (steps.size() > 30) {
+                steps.remove(steps.size() - 1);
+            }
         }
     }
     
@@ -90,13 +120,35 @@ public class RaeYNCheatConfig {
         return steps;
     }
     
+    /**
+     * Create default passkey punishment steps
+     * More aggressive than checksum violations since passkey failures are more suspicious
+     */
+    private static List<Integer> createDefaultPasskeyPunishmentSteps() {
+        List<Integer> steps = new ArrayList<>();
+        steps.add(300);     // 5 minutes
+        steps.add(1800);    // 30 minutes
+        steps.add(7200);    // 2 hours
+        steps.add(86400);   // 24 hours
+        steps.add(-1);      // Permanent ban
+        return steps;
+    }
+    
     public int getPunishmentDuration(int violationCount) {
-        if (violationCount <= 0 || punishmentSteps.isEmpty()) {
+        return getPunishmentDuration(violationCount, punishmentSteps);
+    }
+    
+    public int getPasskeyPunishmentDuration(int violationCount) {
+        return getPunishmentDuration(violationCount, passkeyPunishmentSteps);
+    }
+    
+    private int getPunishmentDuration(int violationCount, List<Integer> steps) {
+        if (violationCount <= 0 || steps.isEmpty()) {
             return 0;
         }
         
         // Use the last step if violations exceed step count
-        int index = Math.min(violationCount - 1, punishmentSteps.size() - 1);
-        return punishmentSteps.get(index);
+        int index = Math.min(violationCount - 1, steps.size() - 1);
+        return steps.get(index);
     }
 }

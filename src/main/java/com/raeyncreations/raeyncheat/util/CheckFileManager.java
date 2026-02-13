@@ -16,6 +16,21 @@ public class CheckFileManager {
     }
     
     /**
+     * Validate that a client's passkey matches the server's expected passkey
+     */
+    public boolean validatePasskey(String clientPasskey, String playerUUID) {
+        String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
+        return expectedPasskey.equals(clientPasskey);
+    }
+    
+    /**
+     * Get the list of checksums for the current mods directory
+     */
+    public List<ChecksumUtil.FileChecksum> getCurrentChecksums() throws Exception {
+        return ChecksumUtil.calculateDirectoryChecksums(modsDir);
+    }
+    
+    /**
      * Generate CheckSum file for client
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Encrypt -> Save
      */

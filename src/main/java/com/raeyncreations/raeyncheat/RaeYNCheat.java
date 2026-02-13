@@ -2,6 +2,7 @@ package com.raeyncreations.raeyncheat;
 
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
 import com.raeyncreations.raeyncheat.server.PunishCommand;
+import com.raeyncreations.raeyncheat.server.PasskeyPunishCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -27,7 +28,8 @@ public class RaeYNCheat {
     
     private static CheckFileManager checkFileManager;
     private static RaeYNCheatConfig config;
-    private static final Map<UUID, Integer> playerViolations = new HashMap<>();
+    private static final Map<UUID, Integer> checksumViolations = new HashMap<>();
+    private static final Map<UUID, Integer> passkeyViolations = new HashMap<>();
     
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
@@ -67,15 +69,37 @@ public class RaeYNCheat {
     
     private void onRegisterCommands(final RegisterCommandsEvent event) {
         PunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+        PasskeyPunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
     }
     
     public static void recordViolation(UUID playerUUID) {
-        int violations = playerViolations.getOrDefault(playerUUID, 0) + 1;
-        playerViolations.put(playerUUID, violations);
+        recordChecksumViolation(playerUUID);
+    }
+    
+    public static void recordChecksumViolation(UUID playerUUID) {
+        int violations = checksumViolations.getOrDefault(playerUUID, 0) + 1;
+        checksumViolations.put(playerUUID, violations);
         
         int duration = config.getPunishmentDuration(violations);
-        LOGGER.warn("Player " + playerUUID + " has " + violations + " violations. Punishment duration: " + 
+        LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Punishment duration: " + 
             (duration == -1 ? "PERMANENT" : duration + " seconds"));
+    }
+    
+    public static void recordPasskeyViolation(UUID playerUUID) {
+        int violations = passkeyViolations.getOrDefault(playerUUID, 0) + 1;
+        passkeyViolations.put(playerUUID, violations);
+        
+        int duration = config.getPasskeyPunishmentDuration(violations);
+        LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Punishment duration: " + 
+            (duration == -1 ? "PERMANENT" : duration + " seconds"));
+    }
+    
+    public static int getChecksumViolationCount(UUID playerUUID) {
+        return checksumViolations.getOrDefault(playerUUID, 0);
+    }
+    
+    public static int getPasskeyViolationCount(UUID playerUUID) {
+        return passkeyViolations.getOrDefault(playerUUID, 0);
     }
     
     public static RaeYNCheatConfig getConfig() {
