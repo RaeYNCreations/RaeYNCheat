@@ -69,9 +69,23 @@ public class EncryptionUtil {
     
     /**
      * Generate a two-part passkey from permanent key and player UUID
+     * Uses SHA-256 hash of UUID to prevent precomputation attacks
      */
     public static String generatePasskey(String playerUUID) {
-        return getDeobfuscatedPermanentKey() + ":" + playerUUID;
+        try {
+            // Hash the UUID to prevent precomputation attacks on known player UUIDs
+            MessageDigest sha = MessageDigest.getInstance("SHA-256");
+            byte[] uuidHash = sha.digest(playerUUID.getBytes(StandardCharsets.UTF_8));
+            
+            // Convert hash to Base64 and use first 32 characters for compactness
+            String uuidHashB64 = Base64.getEncoder().encodeToString(uuidHash);
+            String compactHash = uuidHashB64.substring(0, Math.min(32, uuidHashB64.length()));
+            
+            return getDeobfuscatedPermanentKey() + ":" + compactHash;
+        } catch (Exception e) {
+            // Fallback to original method if hashing fails (should never happen with SHA-256)
+            return getDeobfuscatedPermanentKey() + ":" + playerUUID;
+        }
     }
     
     /**

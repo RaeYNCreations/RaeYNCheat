@@ -12,7 +12,6 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 - **Server-side verification** comparing client mods against expected mods
 - **Passkey synchronization** - client passkeys validated against server
 - **Progressive punishment systems** with configurable ban durations for both violations
-- **Sensitivity analysis** - detects potential false positives (1-2 file changes vs entire modlist)
 - **Admin commands** for managing both checksum and passkey punishments
 - **Comprehensive passkey logging** - all passkey events logged to `logs/cheat.log` for audit trail
 
@@ -44,8 +43,7 @@ Branch naming convention allows for future version ports (e.g., `fabric-1.21.8`,
    - Generates a unique two-part passkey for that player
    - Encrypts the `CheckSum_init` with the player's key
    - Compares the server-generated checksum with the client's checksum
-   - Analyzes differences for sensitivity (false positive detection)
-   - Authenticates or denies based on comparison and sensitivity analysis
+   - Authenticates or denies based on comparison
 
 ## Installation
 
@@ -85,10 +83,7 @@ Configuration file: `config/RaeYNCheat/config.json`
     7200,    // 2 hours
     86400,   // 24 hours
     -1       // Permanent ban
-  ],
-  "enableSensitivityChecks": true,
-  "sensitivityThresholdLow": 2,
-  "sensitivityThresholdHigh": 10
+  ]
 }
 ```
 
@@ -103,11 +98,6 @@ Configuration file: `config/RaeYNCheat/config.json`
 ### Dual Punishment Systems
 - **Checksum violations** - for mod list mismatches
 - **Passkey violations** - for passkey validation failures (more aggressive by default)
-
-### Sensitivity Settings
-- **sensitivityThresholdLow** (default: 2) - 1-2 files different may indicate intentional testing
-- **sensitivityThresholdHigh** (default: 10) - 10+ files different may indicate wrong modpack (accident)
-- **enableSensitivityChecks** - enables false positive detection
 
 ## Admin Commands
 

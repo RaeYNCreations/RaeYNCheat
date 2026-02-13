@@ -9,21 +9,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RaeYNCheatConfig {
     
     // Checksum violation settings
     public volatile boolean enablePunishmentSystem = true;
-    public List<Integer> punishmentSteps = java.util.Collections.synchronizedList(createDefaultPunishmentSteps());
+    public List<Integer> punishmentSteps = new CopyOnWriteArrayList<>(createDefaultPunishmentSteps());
     
     // Passkey violation settings
     public volatile boolean enablePasskeyPunishmentSystem = true;
-    public List<Integer> passkeyPunishmentSteps = java.util.Collections.synchronizedList(createDefaultPasskeyPunishmentSteps());
-    
-    // Sensitivity settings for false positive detection
-    public volatile int sensitivityThresholdLow = 2;  // 1-2 files = might be intentional check
-    public volatile int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
-    public volatile boolean enableSensitivityChecks = true;
+    public List<Integer> passkeyPunishmentSteps = new CopyOnWriteArrayList<>(createDefaultPasskeyPunishmentSteps());
     
     // Constants
     private static final int INVALID_STEP_INDEX = -999;
@@ -67,16 +63,6 @@ public class RaeYNCheatConfig {
         
         // Validate passkey punishment steps
         validatePunishmentSteps(passkeyPunishmentSteps, "passkey punishment");
-        
-        // Validate sensitivity thresholds
-        if (sensitivityThresholdLow < 0) {
-            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdLow: {}. Must be >= 0. Using default: 2", sensitivityThresholdLow);
-            sensitivityThresholdLow = 2;
-        }
-        if (sensitivityThresholdHigh < sensitivityThresholdLow) {
-            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdHigh: {}. Must be >= sensitivityThresholdLow. Using default: 10", sensitivityThresholdHigh);
-            sensitivityThresholdHigh = 10;
-        }
     }
     
     /**
