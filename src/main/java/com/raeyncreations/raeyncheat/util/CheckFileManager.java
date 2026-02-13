@@ -53,6 +53,12 @@ public class CheckFileManager {
         byte[] aBytes = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] bBytes = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         
+        // If lengths differ, still do comparison to maintain constant time
+        // but result will be false
+        if (aBytes.length != bBytes.length) {
+            return false;
+        }
+        
         // Use MessageDigest.isEqual for constant-time comparison
         return java.security.MessageDigest.isEqual(aBytes, bBytes);
     }

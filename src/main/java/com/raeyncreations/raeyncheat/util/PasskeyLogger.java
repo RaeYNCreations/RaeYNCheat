@@ -119,6 +119,15 @@ public class PasskeyLogger {
     }
     
     /**
+     * Log a passkey-related warning
+     */
+    public static void logWarning(String playerUsername, String playerUUID, String passkey, 
+                                 String warningType, String warningMessage) {
+        String details = String.format("Warning Type: %s | Message: %s", warningType, warningMessage);
+        logEvent("WARNING", playerUsername, playerUUID, passkey, true, null, details);
+    }
+    
+    /**
      * Core logging method
      */
     private static void logEvent(String eventType, String playerUsername, String playerUUID, 

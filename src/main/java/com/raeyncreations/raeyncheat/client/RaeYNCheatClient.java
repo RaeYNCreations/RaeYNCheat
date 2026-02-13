@@ -151,9 +151,12 @@ public class RaeYNCheatClient {
                 }
             }
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.warn("Could not get player UUID, using placeholder");
+            RaeYNCheat.LOGGER.error("Could not get player UUID", e);
         }
-        return "00000000-0000-0000-0000-000000000000";
+        
+        // If UUID cannot be retrieved, this is a critical error
+        // Don't use a placeholder UUID as it would allow all players without UUIDs to share the same passkey
+        throw new IllegalStateException("Player UUID could not be retrieved - cannot generate passkey");
     }
     
     private String getPlayerUsername() {
@@ -166,8 +169,10 @@ public class RaeYNCheatClient {
                 }
             }
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.warn("Could not get player username, using placeholder");
+            RaeYNCheat.LOGGER.error("Could not get player username", e);
         }
+        
+        // Return a default that won't break the system
         return "Unknown";
     }
     

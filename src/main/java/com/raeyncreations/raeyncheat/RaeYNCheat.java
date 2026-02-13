@@ -41,8 +41,8 @@ public class RaeYNCheat {
     private static final Map<UUID, Integer> passkeyViolations = new java.util.concurrent.ConcurrentHashMap<>();
     
     // Midnight auto-refresh tracking
-    private static LocalDate lastRefreshDate = null;
-    private static boolean midnightRefreshEnabled = true;
+    private static volatile LocalDate lastRefreshDate = null;
+    private static volatile boolean midnightRefreshEnabled = true;
     
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
