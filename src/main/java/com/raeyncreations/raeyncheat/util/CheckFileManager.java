@@ -194,8 +194,12 @@ public class CheckFileManager {
     
     /**
      * Read encrypted CheckSum file without decryption (for comparison)
+     * 
+     * @return The encrypted checksum content as a string
+     * @throws FileNotFoundException if the CheckSum file does not exist
+     * @throws IOException if an I/O error occurs reading the file
      */
-    public String readEncryptedCheckSum() throws Exception {
+    public String readEncryptedCheckSum() throws IOException {
         Path checkSumFile = configDir.resolve("CheckSum");
         if (!Files.exists(checkSumFile)) {
             throw new FileNotFoundException("CheckSum file not found");

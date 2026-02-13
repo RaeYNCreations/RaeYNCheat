@@ -96,11 +96,12 @@ public class ValidationHandler {
             // Compare checksums
             checksumValid = checkFileManager.compareCheckSums(clientChecksum, serverChecksum);
             
+            RaeYNCheat.LOGGER.debug("Checksum comparison result: {}", checksumValid);
+            
             if (!checksumValid) {
                 RaeYNCheat.LOGGER.warn("Checksum validation FAILED for player {} (UUID: {})", playerUsername, playerUUID);
                 RaeYNCheat.LOGGER.warn("Client checksum length: {}", clientChecksum.length());
                 RaeYNCheat.LOGGER.warn("Server checksum length: {}", serverChecksum.length());
-                RaeYNCheat.LOGGER.warn("Checksums match: {}", clientChecksum.equals(serverChecksum));
                 
                 PasskeyLogger.logValidationFailure(playerUsername, playerUUID, clientChecksum, serverChecksum, 
                     "Checksum mismatch - Client mods do not match server expectations");
