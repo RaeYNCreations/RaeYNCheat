@@ -1,6 +1,7 @@
 package com.raeyncreations.raeyncheat;
 
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
+import com.raeyncreations.raeyncheat.server.PlayerConnectionHandler;
 import com.raeyncreations.raeyncheat.server.RaeYNCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
 import com.raeyncreations.raeyncheat.util.PasskeyLogger;
@@ -12,6 +13,7 @@ import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,12 @@ public class RaeYNCheat {
         
         // Register server events
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        
+        // Register player connection events for passkey logging
+        NeoForge.EVENT_BUS.addListener(PlayerConnectionHandler::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(PlayerConnectionHandler::onPlayerLoggedOut);
     }
     
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -70,6 +77,11 @@ public class RaeYNCheat {
         } catch (Exception e) {
             LOGGER.error("Error generating server CheckSum_init file", e);
         }
+    }
+    
+    private void onServerStopping(final ServerStoppingEvent event) {
+        LOGGER.info("RaeYNCheat server stopping");
+        PasskeyLogger.logSessionSeparator("Server Stopping");
     }
     
     private void onRegisterCommands(final RegisterCommandsEvent event) {
