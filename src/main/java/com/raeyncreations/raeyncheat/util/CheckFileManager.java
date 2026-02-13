@@ -172,9 +172,9 @@ public class CheckFileManager {
             throw new FileNotFoundException("CheckSum_init file not found. Server must generate it first.");
         }
         
-        String obfuscated = Files.readString(checkSumInitFile);
+        String obfuscated = Files.readString(checkSumInitFile).trim();
         
-        if (obfuscated == null || obfuscated.trim().isEmpty()) {
+        if (obfuscated == null || obfuscated.isEmpty()) {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         
@@ -214,7 +214,7 @@ public class CheckFileManager {
             throw new FileNotFoundException("CheckSum file not found");
         }
         
-        return Files.readString(checkSumFile);
+        return Files.readString(checkSumFile).trim();
     }
     
     /**
@@ -226,7 +226,7 @@ public class CheckFileManager {
             throw new FileNotFoundException("CheckSum file not found");
         }
         
-        String encrypted = Files.readString(checkSumFile);
+        String encrypted = Files.readString(checkSumFile).trim();
         String passkey = EncryptionUtil.generatePasskey(playerUUID);
         
         try {
@@ -284,21 +284,5 @@ public class CheckFileManager {
                 "DECRYPT_COMPARE", "Failed to decrypt checksums for comparison: " + e.getMessage());
             return false;
         }
-    }
-    
-    /**
-     * Compare two check files (legacy method - direct comparison)
-     * WARNING: This should not be used for encrypted checksums as each encryption
-     * generates a random IV, making direct comparison impossible.
-     * 
-     * @deprecated Use {@link #compareCheckSums(String, String, String, String, String)} for encrypted checksums
-     * @throws IllegalArgumentException if either checksum is null
-     */
-    @Deprecated
-    public boolean compareCheckSumsLegacy(String checkSum1, String checkSum2) {
-        if (checkSum1 == null || checkSum2 == null) {
-            throw new IllegalArgumentException("Checksums cannot be null for comparison");
-        }
-        return checkSum1.equals(checkSum2);
     }
 }

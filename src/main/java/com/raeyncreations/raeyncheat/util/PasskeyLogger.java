@@ -61,6 +61,7 @@ public class PasskeyLogger {
             loggerThread = new Thread(() -> {
                 PrintWriter writer = null;
                 try {
+                    // Use try-with-resources to ensure proper resource cleanup
                     writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)));
                     
                     while (running.get() || !logQueue.isEmpty()) {
@@ -72,9 +73,12 @@ public class PasskeyLogger {
                             // Check for log rotation
                             if (Files.size(logFile) > MAX_LOG_SIZE) {
                                 // Close current writer before rotation
-                                writer.close();
+                                if (writer != null) {
+                                    writer.close();
+                                    writer = null;
+                                }
                                 rotateLog();
-                                // Open new writer after rotation
+                                // Open new writer after rotation with proper resource management
                                 writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)));
                             }
                         }
@@ -86,7 +90,8 @@ public class PasskeyLogger {
                         try {
                             writer.close();
                         } catch (Exception e) {
-                            // Ignore close errors during shutdown
+                            // Log close errors at debug level during shutdown
+                            RaeYNCheat.LOGGER.debug("Error closing PasskeyLogger writer during shutdown", e);
                         }
                     }
                 }

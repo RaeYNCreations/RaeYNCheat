@@ -111,20 +111,20 @@ public class RaeYNCheatClient {
                 return;
             }
             
-            String clientChecksum = Files.readString(checkSumFile);
+            String clientChecksum = Files.readString(checkSumFile).trim();
             
             // Validate checksum is not null or empty
-            if (clientChecksum == null || clientChecksum.trim().isEmpty()) {
+            if (clientChecksum == null || clientChecksum.isEmpty()) {
                 RaeYNCheat.LOGGER.error("Generated CheckSum file is empty or invalid");
                 RaeYNCheat.LOGGER.error("Cannot sync with server - invalid checksum");
                 return;
             }
             
             // Generate passkey
-            String clientPasskey = EncryptionUtil.generatePasskey(playerUUID);
+            String clientPasskey = EncryptionUtil.generatePasskey(playerUUID).trim();
             
             // Validate passkey is not null or empty
-            if (clientPasskey == null || clientPasskey.trim().isEmpty()) {
+            if (clientPasskey == null || clientPasskey.isEmpty()) {
                 RaeYNCheat.LOGGER.error("Generated passkey is empty or invalid");
                 RaeYNCheat.LOGGER.error("Cannot sync with server - invalid passkey");
                 return;

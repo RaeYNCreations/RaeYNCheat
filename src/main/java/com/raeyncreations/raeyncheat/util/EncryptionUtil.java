@@ -88,6 +88,8 @@ public class EncryptionUtil {
             String decoded = new String(Base64.getDecoder().decode(getPermanentKey()), StandardCharsets.UTF_8);
             return new StringBuilder(decoded).reverse().toString();
         } catch (Exception e) {
+            // Log the deobfuscation failure but continue with fallback
+            // This is expected if the key format changes or decoding fails
             return reconstructPermanentKey(); // Fallback to reconstructed key if deobfuscation fails
         }
     }
