@@ -151,4 +151,104 @@ public class RaeYNCheatConfig {
         int index = Math.min(violationCount - 1, steps.size() - 1);
         return steps.get(index);
     }
+    
+    /**
+     * Set a checksum punishment step at the given index
+     * @param index The step index (0-based, will create new steps if needed)
+     * @param duration The duration in seconds (-1 for permanent, 0 for warning, positive for temp ban)
+     * @return true if successful, false if invalid
+     */
+    public boolean setChecksumPunishmentStep(int index, int duration) {
+        return setPunishmentStep(punishmentSteps, index, duration, "checksum");
+    }
+    
+    /**
+     * Set a passkey punishment step at the given index
+     * @param index The step index (0-based, will create new steps if needed)
+     * @param duration The duration in seconds (-1 for permanent, 0 for warning, positive for temp ban)
+     * @return true if successful, false if invalid
+     */
+    public boolean setPasskeyPunishmentStep(int index, int duration) {
+        return setPunishmentStep(passkeyPunishmentSteps, index, duration, "passkey");
+    }
+    
+    /**
+     * Internal method to set a punishment step
+     */
+    private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
+        // Validate index (0-based, max 29 for 30 total steps)
+        if (index < 0 || index >= 30) {
+            System.err.println("Invalid " + type + " step index: " + index + ". Must be 0-29.");
+            return false;
+        }
+        
+        // Validate duration
+        if (duration < -1) {
+            System.err.println("Invalid " + type + " duration: " + duration + ". Must be -1, 0, or positive integer.");
+            return false;
+        }
+        
+        // Extend list if necessary
+        while (steps.size() <= index) {
+            steps.add(0);
+        }
+        
+        // Set the step
+        steps.set(index, duration);
+        return true;
+    }
+    
+    /**
+     * Get the current checksum punishment steps as a readable string
+     */
+    public String getChecksumPunishmentStepsString() {
+        return getPunishmentStepsString(punishmentSteps);
+    }
+    
+    /**
+     * Get the current passkey punishment steps as a readable string
+     */
+    public String getPasskeyPunishmentStepsString() {
+        return getPunishmentStepsString(passkeyPunishmentSteps);
+    }
+    
+    /**
+     * Internal method to format punishment steps
+     */
+    private String getPunishmentStepsString(List<Integer> steps) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < steps.size(); i++) {
+            if (i > 0) sb.append(", ");
+            int duration = steps.get(i);
+            sb.append("[").append(i).append("]: ");
+            if (duration == -1) {
+                sb.append("PERMANENT");
+            } else if (duration == 0) {
+                sb.append("WARNING");
+            } else {
+                sb.append(duration).append("s");
+            }
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Get a specific checksum punishment step value
+     */
+    public int getChecksumPunishmentStep(int index) {
+        if (index < 0 || index >= punishmentSteps.size()) {
+            return -999; // Invalid marker
+        }
+        return punishmentSteps.get(index);
+    }
+    
+    /**
+     * Get a specific passkey punishment step value
+     */
+    public int getPasskeyPunishmentStep(int index) {
+        if (index < 0 || index >= passkeyPunishmentSteps.size()) {
+            return -999; // Invalid marker
+        }
+        return passkeyPunishmentSteps.get(index);
+    }
 }

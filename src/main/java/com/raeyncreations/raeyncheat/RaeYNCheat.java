@@ -30,6 +30,7 @@ public class RaeYNCheat {
     
     private static CheckFileManager checkFileManager;
     private static RaeYNCheatConfig config;
+    private static Path configFilePath;
     private static final Map<UUID, Integer> checksumViolations = new HashMap<>();
     private static final Map<UUID, Integer> passkeyViolations = new HashMap<>();
     
@@ -57,14 +58,14 @@ public class RaeYNCheat {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
         Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
         Path logsDir = FMLPaths.GAMEDIR.get().resolve("logs");
-        Path configFile = configDir.resolve("config.json");
+        configFilePath = configDir.resolve("config.json");
         
         // Initialize passkey logger
         PasskeyLogger.initialize(logsDir);
         PasskeyLogger.logSessionSeparator("Server Started");
         
         // Load config
-        config = RaeYNCheatConfig.load(configFile);
+        config = RaeYNCheatConfig.load(configFilePath);
         
         // Initialize check file manager
         checkFileManager = new CheckFileManager(configDir, modsClientDir);
@@ -120,6 +121,13 @@ public class RaeYNCheat {
     
     public static RaeYNCheatConfig getConfig() {
         return config;
+    }
+    
+    public static void saveConfig() {
+        if (config != null && configFilePath != null) {
+            config.save(configFilePath);
+            LOGGER.info("Configuration saved to " + configFilePath);
+        }
     }
     
     public static CheckFileManager getCheckFileManager() {

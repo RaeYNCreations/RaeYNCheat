@@ -1,6 +1,7 @@
 package com.raeyncreations.raeyncheat.server;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.raeyncreations.raeyncheat.RaeYNCheat;
@@ -25,10 +26,28 @@ public class RaeYNCommand {
                     .then(Commands.argument("player", StringArgumentType.string())
                         .executes(context -> punishChecksumViolation(context))
                     )
+                    .then(Commands.literal("step")
+                        .then(Commands.argument("index", IntegerArgumentType.integer(0, 29))
+                            .then(Commands.argument("duration", IntegerArgumentType.integer(-1))
+                                .executes(context -> setChecksumStep(context))
+                            )
+                            .executes(context -> getChecksumStep(context))
+                        )
+                        .executes(context -> listChecksumSteps(context))
+                    )
                 )
                 .then(Commands.literal("passkey")
                     .then(Commands.argument("player", StringArgumentType.string())
                         .executes(context -> punishPasskeyViolation(context))
+                    )
+                    .then(Commands.literal("step")
+                        .then(Commands.argument("index", IntegerArgumentType.integer(0, 29))
+                            .then(Commands.argument("duration", IntegerArgumentType.integer(-1))
+                                .executes(context -> setPasskeyStep(context))
+                            )
+                            .executes(context -> getPasskeyStep(context))
+                        )
+                        .executes(context -> listPasskeySteps(context))
                     )
                 )
             )
@@ -138,6 +157,174 @@ public class RaeYNCommand {
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error punishing player for passkey violation", e);
             source.sendFailure(Component.literal("Error punishing player: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int setChecksumStep(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        int index = IntegerArgumentType.getInteger(context, "index");
+        int duration = IntegerArgumentType.getInteger(context, "duration");
+        
+        try {
+            boolean success = RaeYNCheat.getConfig().setChecksumPunishmentStep(index, duration);
+            
+            if (success) {
+                RaeYNCheat.saveConfig();
+                
+                String durationText;
+                if (duration == -1) {
+                    durationText = "PERMANENT BAN";
+                } else if (duration == 0) {
+                    durationText = "WARNING only";
+                } else {
+                    durationText = duration + " seconds";
+                }
+                
+                source.sendSuccess(() -> Component.literal(
+                    "Checksum punishment step " + index + " set to: " + durationText
+                ), true);
+                
+                RaeYNCheat.LOGGER.info("Admin {} set checksum step {} to {}", 
+                    source.getTextName(), index, duration);
+                return 1;
+            } else {
+                source.sendFailure(Component.literal("Failed to set punishment step. Check server logs."));
+                return 0;
+            }
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error setting checksum step", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int getChecksumStep(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        int index = IntegerArgumentType.getInteger(context, "index");
+        
+        try {
+            int duration = RaeYNCheat.getConfig().getChecksumPunishmentStep(index);
+            
+            if (duration == -999) {
+                source.sendFailure(Component.literal("Invalid step index: " + index));
+                return 0;
+            }
+            
+            String durationText;
+            if (duration == -1) {
+                durationText = "PERMANENT BAN";
+            } else if (duration == 0) {
+                durationText = "WARNING only";
+            } else {
+                durationText = duration + " seconds";
+            }
+            
+            source.sendSuccess(() -> Component.literal(
+                "Checksum punishment step " + index + ": " + durationText
+            ), false);
+            return 1;
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error getting checksum step", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int listChecksumSteps(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        
+        try {
+            String steps = RaeYNCheat.getConfig().getChecksumPunishmentStepsString();
+            source.sendSuccess(() -> Component.literal("Checksum punishment steps: " + steps), false);
+            return 1;
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error listing checksum steps", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int setPasskeyStep(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        int index = IntegerArgumentType.getInteger(context, "index");
+        int duration = IntegerArgumentType.getInteger(context, "duration");
+        
+        try {
+            boolean success = RaeYNCheat.getConfig().setPasskeyPunishmentStep(index, duration);
+            
+            if (success) {
+                RaeYNCheat.saveConfig();
+                
+                String durationText;
+                if (duration == -1) {
+                    durationText = "PERMANENT BAN";
+                } else if (duration == 0) {
+                    durationText = "WARNING only";
+                } else {
+                    durationText = duration + " seconds";
+                }
+                
+                source.sendSuccess(() -> Component.literal(
+                    "Passkey punishment step " + index + " set to: " + durationText
+                ), true);
+                
+                RaeYNCheat.LOGGER.info("Admin {} set passkey step {} to {}", 
+                    source.getTextName(), index, duration);
+                return 1;
+            } else {
+                source.sendFailure(Component.literal("Failed to set punishment step. Check server logs."));
+                return 0;
+            }
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error setting passkey step", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int getPasskeyStep(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        int index = IntegerArgumentType.getInteger(context, "index");
+        
+        try {
+            int duration = RaeYNCheat.getConfig().getPasskeyPunishmentStep(index);
+            
+            if (duration == -999) {
+                source.sendFailure(Component.literal("Invalid step index: " + index));
+                return 0;
+            }
+            
+            String durationText;
+            if (duration == -1) {
+                durationText = "PERMANENT BAN";
+            } else if (duration == 0) {
+                durationText = "WARNING only";
+            } else {
+                durationText = duration + " seconds";
+            }
+            
+            source.sendSuccess(() -> Component.literal(
+                "Passkey punishment step " + index + ": " + durationText
+            ), false);
+            return 1;
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error getting passkey step", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    private static int listPasskeySteps(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        
+        try {
+            String steps = RaeYNCheat.getConfig().getPasskeyPunishmentStepsString();
+            source.sendSuccess(() -> Component.literal("Passkey punishment steps: " + steps), false);
+            return 1;
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error listing passkey steps", e);
+            source.sendFailure(Component.literal("Error: " + e.getMessage()));
             return 0;
         }
     }
