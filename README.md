@@ -110,13 +110,13 @@ Configuration file: `config/RaeYNCheat/config.json`
 
 ## Admin Commands
 
-### `/raeynpunish <player>`
+### `/raeyn cheat checksum <player>`
 Manually punish a player for checksum verification failures.
 - Requires operator permission level 2
 - Records a checksum violation and applies punishment based on violation count
 - Progressive punishment according to configured checksum punishment steps
 
-### `/raeynpasskeyban <player>`
+### `/raeyn cheat passkey <player>`
 Manually punish a player for passkey verification failures.
 - Requires operator permission level 2
 - Records a passkey violation and applies punishment based on passkey violation count

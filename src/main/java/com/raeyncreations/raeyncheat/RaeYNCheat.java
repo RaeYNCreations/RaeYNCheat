@@ -1,8 +1,7 @@
 package com.raeyncreations.raeyncheat;
 
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
-import com.raeyncreations.raeyncheat.server.PunishCommand;
-import com.raeyncreations.raeyncheat.server.PasskeyPunishCommand;
+import com.raeyncreations.raeyncheat.server.RaeYNCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -68,8 +67,7 @@ public class RaeYNCheat {
     }
     
     private void onRegisterCommands(final RegisterCommandsEvent event) {
-        PunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
-        PasskeyPunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+        RaeYNCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
     }
     
     public static void recordViolation(UUID playerUUID) {
