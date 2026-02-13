@@ -53,15 +53,19 @@ public class SensitivityAnalyzer {
             int lowThreshold,
             int highThreshold) {
         
-        Set<String> clientFileNames = new HashSet<>();
-        Set<String> serverFileNames = new HashSet<>();
+        // Use HashMap for O(1) lookups instead of O(n) nested loops
+        java.util.Map<String, ChecksumUtil.FileChecksum> clientMap = new java.util.HashMap<>();
+        java.util.Map<String, ChecksumUtil.FileChecksum> serverMap = new java.util.HashMap<>();
         
         for (ChecksumUtil.FileChecksum cs : clientChecksums) {
-            clientFileNames.add(cs.fileName);
+            clientMap.put(cs.fileName, cs);
         }
         for (ChecksumUtil.FileChecksum cs : serverChecksums) {
-            serverFileNames.add(cs.fileName);
+            serverMap.put(cs.fileName, cs);
         }
+        
+        Set<String> clientFileNames = clientMap.keySet();
+        Set<String> serverFileNames = serverMap.keySet();
         
         // Find added files (in client but not on server)
         Set<String> added = new HashSet<>(clientFileNames);
@@ -71,16 +75,15 @@ public class SensitivityAnalyzer {
         Set<String> removed = new HashSet<>(serverFileNames);
         removed.removeAll(clientFileNames);
         
-        // Find modified files (same name but different checksum)
+        // Find modified files (same name but different checksum) - O(n) instead of O(n*m)
         int modified = 0;
-        for (ChecksumUtil.FileChecksum clientCs : clientChecksums) {
-            for (ChecksumUtil.FileChecksum serverCs : serverChecksums) {
-                if (clientCs.fileName.equals(serverCs.fileName)) {
-                    // Compare checksums
-                    if (!clientCs.sha256.equals(serverCs.sha256)) {
-                        modified++;
-                    }
-                    break;
+        for (String fileName : clientFileNames) {
+            if (serverMap.containsKey(fileName)) {
+                ChecksumUtil.FileChecksum clientCs = clientMap.get(fileName);
+                ChecksumUtil.FileChecksum serverCs = serverMap.get(fileName);
+                // Compare checksums
+                if (!clientCs.sha256.equals(serverCs.sha256)) {
+                    modified++;
                 }
             }
         }

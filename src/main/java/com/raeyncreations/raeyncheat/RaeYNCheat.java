@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.io.FileNotFoundException;
+import java.nio.charset.StandardCharsets;
 
 @Mod(RaeYNCheat.MOD_ID)
 public class RaeYNCheat {
@@ -35,8 +36,8 @@ public class RaeYNCheat {
     private static CheckFileManager checkFileManager;
     private static RaeYNCheatConfig config;
     private static Path configFilePath;
-    private static final Map<UUID, Integer> checksumViolations = new HashMap<>();
-    private static final Map<UUID, Integer> passkeyViolations = new HashMap<>();
+    private static final Map<UUID, Integer> checksumViolations = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> passkeyViolations = new java.util.concurrent.ConcurrentHashMap<>();
     
     // Midnight auto-refresh tracking
     private static LocalDate lastRefreshDate = null;
@@ -143,7 +144,11 @@ public class RaeYNCheat {
     
     private void onServerStopping(final ServerStoppingEvent event) {
         LOGGER.info("RaeYNCheat server stopping");
-        PasskeyLogger.logSessionSeparator("Server Stopping");
+        try {
+            PasskeyLogger.logSessionSeparator("Server Stopping");
+        } catch (Exception e) {
+            LOGGER.debug("PasskeyLogger not initialized or error logging separator", e);
+        }
     }
     
     private void onRegisterCommands(final RegisterCommandsEvent event) {
@@ -158,18 +163,26 @@ public class RaeYNCheat {
         int violations = checksumViolations.getOrDefault(playerUUID, 0) + 1;
         checksumViolations.put(playerUUID, violations);
         
-        int duration = config.getPunishmentDuration(violations);
-        LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Punishment duration: " + 
-            (duration == -1 ? "PERMANENT" : duration + " seconds"));
+        if (config != null) {
+            int duration = config.getPunishmentDuration(violations);
+            LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Punishment duration: " + 
+                (duration == -1 ? "PERMANENT" : duration + " seconds"));
+        } else {
+            LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Config not loaded.");
+        }
     }
     
     public static void recordPasskeyViolation(UUID playerUUID) {
         int violations = passkeyViolations.getOrDefault(playerUUID, 0) + 1;
         passkeyViolations.put(playerUUID, violations);
         
-        int duration = config.getPasskeyPunishmentDuration(violations);
-        LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Punishment duration: " + 
-            (duration == -1 ? "PERMANENT" : duration + " seconds"));
+        if (config != null) {
+            int duration = config.getPasskeyPunishmentDuration(violations);
+            LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Punishment duration: " + 
+                (duration == -1 ? "PERMANENT" : duration + " seconds"));
+        } else {
+            LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Config not loaded.");
+        }
     }
     
     public static int getChecksumViolationCount(UUID playerUUID) {

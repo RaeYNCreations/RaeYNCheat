@@ -2,6 +2,7 @@ package com.raeyncreations.raeyncheat.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.raeyncreations.raeyncheat.RaeYNCheat;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -37,7 +38,7 @@ public class RaeYNCheatConfig {
                 config.validate();
                 return config;
             } catch (Exception e) {
-                System.err.println("Error loading config, using defaults: " + e.getMessage());
+                RaeYNCheat.LOGGER.error("Error loading config, using defaults: {}", e.getMessage());
             }
         }
         
@@ -53,7 +54,7 @@ public class RaeYNCheatConfig {
                 GSON.toJson(this, writer);
             }
         } catch (Exception e) {
-            System.err.println("Error saving config: " + e.getMessage());
+            RaeYNCheat.LOGGER.error("Error saving config: {}", e.getMessage());
         }
     }
     
@@ -69,11 +70,11 @@ public class RaeYNCheatConfig {
         
         // Validate sensitivity thresholds
         if (sensitivityThresholdLow < 0) {
-            System.err.println("Invalid sensitivityThresholdLow: " + sensitivityThresholdLow + ". Must be >= 0.");
+            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdLow: {}. Must be >= 0. Using default: 2", sensitivityThresholdLow);
             sensitivityThresholdLow = 2;
         }
         if (sensitivityThresholdHigh < sensitivityThresholdLow) {
-            System.err.println("Invalid sensitivityThresholdHigh: " + sensitivityThresholdHigh + ". Must be >= sensitivityThresholdLow.");
+            RaeYNCheat.LOGGER.warn("Invalid sensitivityThresholdHigh: {}. Must be >= sensitivityThresholdLow. Using default: 10", sensitivityThresholdHigh);
             sensitivityThresholdHigh = 10;
         }
     }
@@ -81,22 +82,23 @@ public class RaeYNCheatConfig {
     /**
      * Validate a list of punishment steps
      */
-    private void validatePunishmentSteps(List<Integer> steps, String type) {
+    private synchronized void validatePunishmentSteps(List<Integer> steps, String type) {
         for (int i = 0; i < steps.size(); i++) {
             int step = steps.get(i);
             if (step < -1) {
-                System.err.println("Invalid " + type + " step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
+                RaeYNCheat.LOGGER.warn("Invalid {} step at index {}: {}. Must be -1, 0, or positive integer. Using 0.", type, i, step);
                 steps.set(i, 0);
             }
             // Only -1 and 0 are allowed as non-positive values
             if (step != -1 && step < 0) {
-                System.err.println("Invalid " + type + " step at index " + i + ": " + step + ". Must be -1, 0, or positive integer.");
+                RaeYNCheat.LOGGER.warn("Invalid {} step at index {}: {}. Must be -1, 0, or positive integer. Using 0.", type, i, step);
                 steps.set(i, 0);
             }
         }
         
         // Limit to 30 steps
         if (steps.size() > 30) {
+            RaeYNCheat.LOGGER.warn("{} steps exceed maximum of 30. Truncating to 30 steps.", type);
             while (steps.size() > 30) {
                 steps.remove(steps.size() - 1);
             }
@@ -187,16 +189,16 @@ public class RaeYNCheatConfig {
      * with 0 (WARNING) values up to that index. This allows gradual configuration
      * of punishment steps without requiring all steps to be defined at once.
      */
-    private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
+    private synchronized boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
         // Validate index (0-based, max 29 for 30 total steps)
         if (index < 0 || index >= 30) {
-            System.err.println("Invalid " + type + " step index: " + index + ". Must be 0-29.");
+            RaeYNCheat.LOGGER.error("Invalid {} step index: {}. Must be 0-29.", type, index);
             return false;
         }
         
         // Validate duration
         if (duration < -1) {
-            System.err.println("Invalid " + type + " duration: " + duration + ". Must be -1, 0, or positive integer.");
+            RaeYNCheat.LOGGER.error("Invalid {} duration: {}. Must be -1, 0, or positive integer.", type, duration);
             return false;
         }
         

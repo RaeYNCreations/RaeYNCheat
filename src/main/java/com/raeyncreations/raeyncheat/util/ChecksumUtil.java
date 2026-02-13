@@ -1,5 +1,7 @@
 package com.raeyncreations.raeyncheat.util;
 
+import com.raeyncreations.raeyncheat.RaeYNCheat;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,7 +66,7 @@ public class ChecksumUtil {
         }
         
         if (jarFiles.length == 0) {
-            System.err.println("Warning: No JAR files found in directory: " + directory);
+            RaeYNCheat.LOGGER.warn("No JAR files found in directory");
             return checksums; // Return empty list
         }
         
@@ -78,7 +80,7 @@ public class ChecksumUtil {
                     checksums.add(checksum);
                 }
             } catch (Exception e) {
-                System.err.println("Error calculating checksum for " + jarFile.getName() + ": " + e.getMessage());
+                RaeYNCheat.LOGGER.debug("Error calculating checksum for file: {}", e.getMessage());
                 // Continue processing other files
             }
         }
@@ -108,7 +110,7 @@ public class ChecksumUtil {
         
         // Calculate SHA-256 hash of the aggregated content
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] hash = sha256.digest(content.toString().getBytes());
+        byte[] hash = sha256.digest(content.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         
         return bytesToHex(hash);
     }

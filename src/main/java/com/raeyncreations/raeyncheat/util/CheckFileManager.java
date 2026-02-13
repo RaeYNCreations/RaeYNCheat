@@ -11,6 +11,12 @@ public class CheckFileManager {
     private final Path modsDir;
     
     public CheckFileManager(Path configDir, Path modsDir) {
+        if (configDir == null) {
+            throw new IllegalArgumentException("Config directory cannot be null");
+        }
+        if (modsDir == null) {
+            throw new IllegalArgumentException("Mods directory cannot be null");
+        }
         this.configDir = configDir;
         this.modsDir = modsDir;
     }
@@ -44,11 +50,7 @@ public class CheckFileManager {
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Encrypt -> Save
      */
     public void generateClientCheckFile(String playerUUID, String playerUsername) throws Exception {
-        // Validate modsDir before proceeding
-        if (modsDir == null) {
-            throw new IllegalStateException("Mods directory is null - cannot generate client check file");
-        }
-        
+        // Validate modsDir exists (null check already done in constructor)
         if (!java.nio.file.Files.exists(modsDir)) {
             throw new IllegalStateException("Mods directory does not exist: " + modsDir);
         }
@@ -86,11 +88,7 @@ public class CheckFileManager {
      * Process: Calculate checksums -> Aggregate -> Obfuscate -> Save
      */
     public void generateServerInitCheckFile() throws Exception {
-        // Validate modsDir before proceeding
-        if (modsDir == null) {
-            throw new IllegalStateException("Mods directory is null - cannot generate server init check file");
-        }
-        
+        // Validate modsDir exists (null check already done in constructor)
         if (!java.nio.file.Files.exists(modsDir)) {
             throw new FileNotFoundException("Mods directory does not exist: " + modsDir + ". Please create the mods_client directory and add expected client mods.");
         }
