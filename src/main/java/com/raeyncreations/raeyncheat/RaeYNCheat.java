@@ -39,8 +39,8 @@ public class RaeYNCheat {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     
     private static volatile CheckFileManager checkFileManager;
-    private static RaeYNCheatConfig config;
-    private static Path configFilePath;
+    private static volatile RaeYNCheatConfig config;
+    private static volatile Path configFilePath;
     private static final Map<UUID, Integer> checksumViolations = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<UUID, Integer> passkeyViolations = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Object CHECK_FILE_MANAGER_LOCK = new Object();
@@ -139,7 +139,7 @@ public class RaeYNCheat {
      * Uses atomic flag and ScheduledExecutorService to prevent race conditions
      */
     private void onServerTick(final ServerTickEvent.Pre event) {
-        if (!midnightRefreshEnabled || checkFileManager == null) {
+        if (!midnightRefreshEnabled || checkFileManager == null || scheduledExecutor.isShutdown()) {
             return;
         }
         
@@ -162,7 +162,12 @@ public class RaeYNCheat {
                 LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
             } finally {
                 // Schedule flag reset after 15 seconds using ScheduledExecutorService
-                scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
+                try {
+                    scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
+                } catch (java.util.concurrent.RejectedExecutionException e) {
+                    // Executor was shut down, reset flag immediately
+                    midnightRefreshInProgress.set(false);
+                }
             }
         }
     }

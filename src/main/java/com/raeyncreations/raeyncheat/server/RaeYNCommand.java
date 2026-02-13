@@ -66,6 +66,12 @@ public class RaeYNCommand {
         String playerName = StringArgumentType.getString(context, "player");
         CommandSourceStack source = context.getSource();
         
+        // Validate player name length (Minecraft usernames are 3-16 characters)
+        if (playerName == null || playerName.length() < 3 || playerName.length() > 16) {
+            source.sendFailure(Component.literal("Invalid player name (must be 3-16 characters)"));
+            return 0;
+        }
+        
         try {
             // Find player by name
             ServerPlayer targetPlayer = source.getServer().getPlayerList().getPlayerByName(playerName);
@@ -126,6 +132,12 @@ public class RaeYNCommand {
     private static int punishPasskeyViolation(CommandContext<CommandSourceStack> context) {
         String playerName = StringArgumentType.getString(context, "player");
         CommandSourceStack source = context.getSource();
+        
+        // Validate player name length (Minecraft usernames are 3-16 characters)
+        if (playerName == null || playerName.length() < 3 || playerName.length() > 16) {
+            source.sendFailure(Component.literal("Invalid player name (must be 3-16 characters)"));
+            return 0;
+        }
         
         try {
             // Find player by name

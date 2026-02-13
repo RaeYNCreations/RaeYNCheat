@@ -144,6 +144,15 @@ Manage passkey punishment steps.
 
 All passkey-related events are automatically logged to `logs/cheat.log` for comprehensive audit trails.
 
+### Async Logging Architecture
+The PasskeyLogger uses asynchronous logging to prevent I/O bottlenecks during player validation:
+- Events are queued (max 1000 entries) and written by a background thread
+- No performance impact on player login validation
+- Automatic log rotation at 10 MB file size
+- Graceful shutdown ensures all queued events are written
+
+**Note:** Due to async logging, log entries may appear with a slight delay (typically <100ms). All events are guaranteed to be written before server shutdown.
+
 ### Logged Events
 - **Server lifecycle**: Server start/stop events
 - **Passkey generation**: When passkeys are created for players (client/server)
@@ -179,14 +188,16 @@ Details: Passkey generated for player
 
 ## Security Features
 
-- **Passkey authentication**: Secure validation system
+- **Passkey authentication**: Secure validation system with SHA-256 hashed UUIDs
 - **Passkey validation**: Server validates client passkeys on connection
 - **XOR obfuscation**: Prevents simple reading of encrypted data
-- **AES encryption**: Using SHA-256 derived keys
+- **AES/GCM encryption**: Authenticated encryption with 128-bit authentication tag
+- **PBKDF2 key derivation**: 10,000 iterations for strong key stretching
+- **Random IV per encryption**: Prevents pattern analysis attacks
 - **Real-time generation**: Check files generated fresh on each connection
-- **Tamper-proof**: Keys cannot be manipulated in real-time
+- **Tamper-proof**: Keys cannot be manipulated in real-time, GCM detects tampering
 - **Dual violation tracking**: Separate tracking for checksum and passkey violations
-- **Sensitivity analysis**: Distinguishes between intentional changes and accidents
+- **Async logging**: High-performance event logging with automatic rotation
 
 ## Building
 
@@ -226,17 +237,23 @@ See [OBFUSCATION.md](OBFUSCATION.md) for complete details on anti-decompilation 
 ### Project Structure
 ```
 src/main/java/com/raeyncreations/raeyncheat/
-├── RaeYNCheat.java                 # Main mod class
-├── RaeYNCheatClient.java           # Client-side entry point
-├── RaeYNCheatServer.java           # Server-side entry point
+├── RaeYNCheat.java                 # Main mod class (server initialization)
+├── client/
+│   └── RaeYNCheatClient.java       # Client-side entry point
 ├── config/
 │   └── RaeYNCheatConfig.java       # Configuration handling
 ├── server/
-│   └── PunishCommand.java          # Admin punishment command
+│   ├── PlayerConnectionHandler.java # Player connection event handlers
+│   ├── ValidationHandler.java      # Passkey and checksum validation logic
+│   └── RaeYNCommand.java           # Admin punishment commands
+├── network/
+│   ├── NetworkHandler.java         # Packet registration
+│   └── SyncPacket.java             # Client-server sync packet
 └── util/
-    ├── ChecksumUtil.java           # Checksum calculation
-    ├── EncryptionUtil.java         # Encryption/obfuscation
-    └── CheckFileManager.java       # Check file generation/comparison
+    ├── ChecksumUtil.java           # Checksum calculation (CRC32, SHA-256, MD5)
+    ├── EncryptionUtil.java         # Encryption/obfuscation (AES/GCM, PBKDF2)
+    ├── CheckFileManager.java       # Check file generation/comparison
+    └── PasskeyLogger.java          # Async passkey event logging
 ```
 
 ## Troubleshooting

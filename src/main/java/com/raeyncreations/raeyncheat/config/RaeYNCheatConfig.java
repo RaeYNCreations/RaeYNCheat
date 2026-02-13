@@ -192,6 +192,7 @@ public class RaeYNCheatConfig {
      * Note: If the index is beyond the current list size, the list will be extended
      * with 0 (WARNING) values up to that index. This allows gradual configuration
      * of punishment steps without requiring all steps to be defined at once.
+     * Maximum of 30 steps enforced.
      */
     private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
         // Validate index (0-based, max 29 for 30 total steps)
@@ -206,9 +207,15 @@ public class RaeYNCheatConfig {
             return false;
         }
         
-        // Extend list with WARNING (0) values if necessary
-        while (steps.size() <= index) {
+        // Extend list with WARNING (0) values if necessary (but don't exceed 30)
+        while (steps.size() <= index && steps.size() < 30) {
             steps.add(0);
+        }
+        
+        // Final check: don't allow setting if it would exceed 30 steps
+        if (steps.size() > 30) {
+            RaeYNCheat.LOGGER.error("Cannot set {} step - would exceed maximum of 30 steps", type);
+            return false;
         }
         
         // Set the step
