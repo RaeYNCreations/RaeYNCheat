@@ -30,11 +30,13 @@ public class ValidationHandler {
         
         CheckFileManager checkFileManager = RaeYNCheat.getCheckFileManager();
         
-        // If check file manager is not initialized, allow connection but log warning
+        // If check file manager is not initialized, REJECT connection (fail-closed security)
         if (checkFileManager == null) {
-            RaeYNCheat.LOGGER.warn("CheckFileManager not initialized - skipping validation for player {}", playerUsername);
-            PasskeyLogger.logWarning(playerUsername, playerUUID, clientPasskey, 
-                "VALIDATION_SKIPPED", "CheckFileManager not initialized - mod verification disabled");
+            RaeYNCheat.LOGGER.error("CheckFileManager not initialized - REJECTING connection for player {} (UUID: {})", 
+                playerUsername, playerUUID);
+            PasskeyLogger.logError(playerUsername, playerUUID, clientPasskey, 
+                "VALIDATION_FAILED", "CheckFileManager not initialized - mod verification system unavailable", null);
+            player.connection.disconnect(Component.literal("Server mod verification system unavailable - connection rejected"));
             return;
         }
         
@@ -43,6 +45,9 @@ public class ValidationHandler {
         
         // Step 1: Validate passkey first
         try {
+            RaeYNCheat.LOGGER.info("Step 1/2: Validating passkey for player {} (UUID: {})...", playerUsername, playerUUID);
+            // Note: Passkey details not logged to prevent exposing authentication data
+            
             passkeyValid = checkFileManager.validatePasskey(clientPasskey, playerUUID, playerUsername);
             
             if (!passkeyValid) {
@@ -63,7 +68,7 @@ public class ValidationHandler {
         // Step 2 & 3: Generate server checksum using validated passkey, then compare
         try {
             // Generate server-side check file using the validated passkey
-            RaeYNCheat.LOGGER.info("Generating server checksum for player {} using validated passkey...", playerUsername);
+            RaeYNCheat.LOGGER.info("Step 2/2: Generating server checksum for player {} using validated passkey...", playerUsername);
             checkFileManager.generateServerCheckFile(playerUUID, playerUsername, clientPasskey);
             
             // Read the generated server checksum (encrypted, for direct comparison)
