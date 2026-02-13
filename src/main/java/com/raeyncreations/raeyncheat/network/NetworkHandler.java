@@ -32,6 +32,13 @@ public class NetworkHandler {
     
     /**
      * Handle sync packet on server side
+     * 
+     * Thread Safety: This method enqueues the packet handling work to the game thread
+     * using context.enqueueWork(). The actual processing happens on the server's main
+     * game thread, ensuring thread-safe access to game state and player data.
+     * 
+     * @param packet The sync packet received from the client
+     * @param context The payload context containing player information and execution context
      */
     private static void handleSyncPacket(SyncPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {

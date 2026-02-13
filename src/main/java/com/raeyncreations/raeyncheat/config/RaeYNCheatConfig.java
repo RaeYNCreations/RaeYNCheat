@@ -100,12 +100,11 @@ public class RaeYNCheatConfig {
             }
         }
         
-        // Limit to 30 steps
+        // Limit to 30 steps - use subList for efficient O(1) removal instead of repeated remove()
         if (steps.size() > 30) {
             RaeYNCheat.LOGGER.warn("{} steps exceed maximum of 30. Truncating to 30 steps.", type);
-            while (steps.size() > 30) {
-                steps.remove(steps.size() - 1);
-            }
+            // Remove all elements from index 30 onwards in one operation
+            steps.subList(30, steps.size()).clear();
         }
     }
     
@@ -208,17 +207,12 @@ public class RaeYNCheatConfig {
         }
         
         // Extend list with WARNING (0) values if necessary (but don't exceed 30)
+        // The check in the while condition ensures we never exceed 30
         while (steps.size() <= index && steps.size() < 30) {
             steps.add(0);
         }
         
-        // Final check: don't allow setting if it would exceed 30 steps
-        if (steps.size() > 30) {
-            RaeYNCheat.LOGGER.error("Cannot set {} step - would exceed maximum of 30 steps", type);
-            return false;
-        }
-        
-        // Set the step
+        // Set the step (index validation already ensures this is safe)
         steps.set(index, duration);
         return true;
     }
