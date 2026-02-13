@@ -46,8 +46,7 @@ public class ValidationHandler {
         // Step 1: Validate passkey first
         try {
             RaeYNCheat.LOGGER.info("Step 1/2: Validating passkey for player {} (UUID: {})...", playerUsername, playerUUID);
-            RaeYNCheat.LOGGER.debug("Client passkey (first 20 chars): {}...", 
-                clientPasskey.length() > 20 ? clientPasskey.substring(0, 20) : clientPasskey);
+            // Note: Passkey details not logged to prevent exposing authentication data
             
             passkeyValid = checkFileManager.validatePasskey(clientPasskey, playerUUID, playerUsername);
             

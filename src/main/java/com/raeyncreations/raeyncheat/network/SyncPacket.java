@@ -130,8 +130,16 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
             return false;
         }
         
-        // Must contain exactly one colon separator
-        int colonCount = passkey.length() - passkey.replace(":", "").length();
+        // Must contain exactly one colon separator (efficient char iteration)
+        int colonCount = 0;
+        for (int i = 0; i < passkey.length(); i++) {
+            if (passkey.charAt(i) == ':') {
+                colonCount++;
+                if (colonCount > 1) {
+                    return false; // Early exit if more than one colon
+                }
+            }
+        }
         if (colonCount != 1) {
             return false;
         }
