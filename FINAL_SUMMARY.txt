@@ -10,7 +10,7 @@ STATUS: All requirements implemented and ready for production
 ================================================================================
 
 ORIGINAL REQUEST:
-1. ✅ Date-based two-part passkey ("2003, December 15th" + UUID)
+1. ✅ Secure passkey authentication system
 2. ✅ Passkey comparison between client and server
 3. ✅ Separate passkey violation system with auto-ban
 4. ✅ Sensitivity checks for false positives (1-2 files vs entire modlist)
@@ -24,10 +24,9 @@ ADDITIONAL REQUEST:
 
 PASSKEY SYSTEM:
 --------------
-Format: "2003, December 15th:player-uuid"
-Storage: Split into 5 parts (PART1="2003", PART2=", ", etc.)
-Runtime: Reconstructed dynamically
-Encoding: Base64 + string reversal
+Secure authentication between client and server
+Protected storage and validation
+Runtime validation ensures integrity
 Obfuscation: ProGuard renames all methods/fields
 Validation: Server compares client passkey with expected
 
@@ -55,10 +54,10 @@ Smart punishment: Only punish MEDIUM, warn for others
 
 CODE OBFUSCATION:
 ----------------
-4 layers of protection:
-1. Split key storage (5 parts)
-2. Runtime reconstruction (StringBuilder)
-3. Multi-encoding (Base64 + reversal)
+Multiple layers of protection:
+1. Protected key storage
+2. Runtime security measures
+3. Multi-layer encoding
 4. ProGuard obfuscation (class/method/field renaming)
 
 Result: Extremely difficult to reverse engineer
@@ -87,13 +86,13 @@ All values validated on load, sensible defaults provided.
                          ADMIN COMMANDS
 ================================================================================
 
-/raeynpunish <player>
+/raeyn cheat checksum <player>
   - Punish for checksum violations
   - Records checksum violation
   - Applies punishment based on violation count
   - Requires OP level 2
 
-/raeynpasskeyban <player>
+/raeyn cheat passkey <player>
   - Punish for passkey violations
   - Records passkey violation
   - More aggressive punishment (passkey failures are suspicious)
@@ -163,10 +162,10 @@ DOCUMENTATION (6 files):
                          SECURITY ASSESSMENT
 ================================================================================
 
-PERMANENT KEY PROTECTION:
-  🔒 Split into 5 parts (not easily found)
-  🔒 Reconstructed at runtime (not in static strings)
-  🔒 Base64 encoded + reversed (obfuscated)
+KEY PROTECTION:
+  🔒 Protected storage mechanism
+  🔒 Runtime security measures
+  🔒 Multi-layer encoding
   🔒 ProGuard renamed methods (gibberish names)
   🔒 Result: Very difficult to extract
 

@@ -24,6 +24,9 @@ public class RaeYNCheatConfig {
     public int sensitivityThresholdHigh = 10; // 10+ files = might be accidental
     public boolean enableSensitivityChecks = true;
     
+    // Constants
+    private static final int INVALID_STEP_INDEX = -999;
+    
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     public static RaeYNCheatConfig load(Path configPath) {
@@ -150,5 +153,121 @@ public class RaeYNCheatConfig {
         // Use the last step if violations exceed step count
         int index = Math.min(violationCount - 1, steps.size() - 1);
         return steps.get(index);
+    }
+    
+    /**
+     * Set a checksum punishment step at the given index
+     * @param index The step index (0-based, will create new steps if needed)
+     * @param duration The duration in seconds (-1 for permanent, 0 for warning, positive for temp ban)
+     * @return true if successful, false if invalid
+     */
+    public boolean setChecksumPunishmentStep(int index, int duration) {
+        return setPunishmentStep(punishmentSteps, index, duration, "checksum");
+    }
+    
+    /**
+     * Set a passkey punishment step at the given index
+     * @param index The step index (0-based, will create new steps if needed)
+     * @param duration The duration in seconds (-1 for permanent, 0 for warning, positive for temp ban)
+     * @return true if successful, false if invalid
+     */
+    public boolean setPasskeyPunishmentStep(int index, int duration) {
+        return setPunishmentStep(passkeyPunishmentSteps, index, duration, "passkey");
+    }
+    
+    /**
+     * Internal method to set a punishment step
+     * @param steps The list of punishment steps to modify
+     * @param index The 0-based index of the step
+     * @param duration The duration in seconds
+     * @param type The type name for error messages
+     * @return true if successful, false if invalid
+     * 
+     * Note: If the index is beyond the current list size, the list will be extended
+     * with 0 (WARNING) values up to that index. This allows gradual configuration
+     * of punishment steps without requiring all steps to be defined at once.
+     */
+    private boolean setPunishmentStep(List<Integer> steps, int index, int duration, String type) {
+        // Validate index (0-based, max 29 for 30 total steps)
+        if (index < 0 || index >= 30) {
+            System.err.println("Invalid " + type + " step index: " + index + ". Must be 0-29.");
+            return false;
+        }
+        
+        // Validate duration
+        if (duration < -1) {
+            System.err.println("Invalid " + type + " duration: " + duration + ". Must be -1, 0, or positive integer.");
+            return false;
+        }
+        
+        // Extend list with WARNING (0) values if necessary
+        while (steps.size() <= index) {
+            steps.add(0);
+        }
+        
+        // Set the step
+        steps.set(index, duration);
+        return true;
+    }
+    
+    /**
+     * Get the current checksum punishment steps as a readable string
+     */
+    public String getChecksumPunishmentStepsString() {
+        return getPunishmentStepsString(punishmentSteps);
+    }
+    
+    /**
+     * Get the current passkey punishment steps as a readable string
+     */
+    public String getPasskeyPunishmentStepsString() {
+        return getPunishmentStepsString(passkeyPunishmentSteps);
+    }
+    
+    /**
+     * Internal method to format punishment steps
+     */
+    private String getPunishmentStepsString(List<Integer> steps) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < steps.size(); i++) {
+            if (i > 0) sb.append(", ");
+            int duration = steps.get(i);
+            sb.append("[").append(i).append("]: ");
+            if (duration == -1) {
+                sb.append("PERMANENT");
+            } else if (duration == 0) {
+                sb.append("WARNING");
+            } else {
+                sb.append(duration).append("s");
+            }
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Get a specific checksum punishment step value
+     */
+    public int getChecksumPunishmentStep(int index) {
+        if (index < 0 || index >= punishmentSteps.size()) {
+            return INVALID_STEP_INDEX;
+        }
+        return punishmentSteps.get(index);
+    }
+    
+    /**
+     * Get a specific passkey punishment step value
+     */
+    public int getPasskeyPunishmentStep(int index) {
+        if (index < 0 || index >= passkeyPunishmentSteps.size()) {
+            return INVALID_STEP_INDEX;
+        }
+        return passkeyPunishmentSteps.get(index);
+    }
+    
+    /**
+     * Check if a step index is the invalid marker
+     */
+    public static boolean isInvalidStepIndex(int value) {
+        return value == INVALID_STEP_INDEX;
     }
 }

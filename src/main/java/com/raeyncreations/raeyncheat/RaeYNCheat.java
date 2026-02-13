@@ -1,9 +1,10 @@
 package com.raeyncreations.raeyncheat;
 
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
-import com.raeyncreations.raeyncheat.server.PunishCommand;
-import com.raeyncreations.raeyncheat.server.PasskeyPunishCommand;
+import com.raeyncreations.raeyncheat.server.PlayerConnectionHandler;
+import com.raeyncreations.raeyncheat.server.RaeYNCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
+import com.raeyncreations.raeyncheat.util.PasskeyLogger;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -12,6 +13,7 @@ import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ public class RaeYNCheat {
     
     private static CheckFileManager checkFileManager;
     private static RaeYNCheatConfig config;
+    private static Path configFilePath;
     private static final Map<UUID, Integer> checksumViolations = new HashMap<>();
     private static final Map<UUID, Integer> passkeyViolations = new HashMap<>();
     
@@ -36,7 +39,12 @@ public class RaeYNCheat {
         
         // Register server events
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        
+        // Register player connection events for passkey logging
+        NeoForge.EVENT_BUS.addListener(PlayerConnectionHandler::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(PlayerConnectionHandler::onPlayerLoggedOut);
     }
     
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -49,10 +57,15 @@ public class RaeYNCheat {
         // Get paths
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
         Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
-        Path configFile = configDir.resolve("config.json");
+        Path logsDir = FMLPaths.GAMEDIR.get().resolve("logs");
+        configFilePath = configDir.resolve("config.json");
+        
+        // Initialize passkey logger
+        PasskeyLogger.initialize(logsDir);
+        PasskeyLogger.logSessionSeparator("Server Started");
         
         // Load config
-        config = RaeYNCheatConfig.load(configFile);
+        config = RaeYNCheatConfig.load(configFilePath);
         
         // Initialize check file manager
         checkFileManager = new CheckFileManager(configDir, modsClientDir);
@@ -67,9 +80,13 @@ public class RaeYNCheat {
         }
     }
     
+    private void onServerStopping(final ServerStoppingEvent event) {
+        LOGGER.info("RaeYNCheat server stopping");
+        PasskeyLogger.logSessionSeparator("Server Stopping");
+    }
+    
     private void onRegisterCommands(final RegisterCommandsEvent event) {
-        PunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
-        PasskeyPunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+        RaeYNCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
     }
     
     public static void recordViolation(UUID playerUUID) {
@@ -104,6 +121,13 @@ public class RaeYNCheat {
     
     public static RaeYNCheatConfig getConfig() {
         return config;
+    }
+    
+    public static void saveConfig() {
+        if (config != null && configFilePath != null) {
+            config.save(configFilePath);
+            LOGGER.info("Configuration saved to " + configFilePath);
+        }
     }
     
     public static CheckFileManager getCheckFileManager() {

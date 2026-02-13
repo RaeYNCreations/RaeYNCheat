@@ -74,7 +74,7 @@ On first run, a config file is created at `config/RaeYNCheat/config.json`:
 
 #### Punish for Checksum Violation
 ```
-/raeynpunish <playername>
+/raeyn cheat checksum <playername>
 ```
 - Requires OP level 2
 - Records a checksum violation for the player
@@ -83,7 +83,7 @@ On first run, a config file is created at `config/RaeYNCheat/config.json`:
 
 #### Punish for Passkey Violation
 ```
-/raeynpasskeyban <playername>
+/raeyn cheat passkey <playername>
 ```
 - Requires OP level 2
 - Records a passkey violation for the player
@@ -92,8 +92,8 @@ On first run, a config file is created at `config/RaeYNCheat/config.json`:
 
 #### Examples
 ```
-/raeynpunish Steve          # For checksum violations
-/raeynpasskeyban Alex       # For passkey violations
+/raeyn cheat checksum Steve     # For checksum violations
+/raeyn cheat passkey Alex       # For passkey violations
 ```
 
 ### Monitoring
@@ -149,7 +149,7 @@ Check server logs for:
 
 **Command not working**
 - Confirm you have OP level 2 or higher
-- Check command syntax: `/raeynpunish playername`
+- Check command syntax: `/raeyn cheat checksum <playername>` or `/raeyn cheat passkey <playername>`
 - Review logs for error messages
 
 **Players always fail verification**

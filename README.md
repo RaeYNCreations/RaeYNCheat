@@ -5,7 +5,7 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 ## Features
 
 - **Client-side mod verification** with CRC32, SHA-256, and MD5 checksums
-- **Two-part passkey system** - Secret, sorry!
+- **Passkey authentication system** for secure client-server validation
 - **Dual violation tracking** - separate systems for checksum and passkey violations
 - **Encryption and obfuscation** to prevent tampering
 - **Automatic check file generation** on each client launch and server connection
@@ -14,6 +14,7 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 - **Progressive punishment systems** with configurable ban durations for both violations
 - **Sensitivity analysis** - detects potential false positives (1-2 file changes vs entire modlist)
 - **Admin commands** for managing both checksum and passkey punishments
+- **Comprehensive passkey logging** - all passkey events logged to `logs/cheat.log` for audit trail
 
 ## Branches
 
@@ -110,23 +111,85 @@ Configuration file: `config/RaeYNCheat/config.json`
 
 ## Admin Commands
 
-### `/raeynpunish <player>`
+### `/raeyn cheat checksum <player>`
 Manually punish a player for checksum verification failures.
 - Requires operator permission level 2
 - Records a checksum violation and applies punishment based on violation count
 - Progressive punishment according to configured checksum punishment steps
 
-### `/raeynpasskeyban <player>`
+### `/raeyn cheat passkey <player>`
 Manually punish a player for passkey verification failures.
 - Requires operator permission level 2
 - Records a passkey violation and applies punishment based on passkey violation count
 - Progressive punishment according to configured passkey punishment steps
 - More aggressive by default since passkey failures are more suspicious
+- Logs the manual violation to `logs/cheat.log` with admin username and punishment details
+
+### `/raeyn cheat checksum step [index] [duration]`
+Manage checksum punishment steps.
+- Requires operator permission level 2
+- **No arguments**: Lists all current checksum punishment steps
+- **With index only**: Shows the specific step at that index
+- **With index and duration**: Sets the punishment step to the specified duration
+  - `index`: Step number (0-29, where 0 is first violation, 1 is second, etc.)
+  - `duration`: 
+    - `-1` = Permanent ban
+    - `0` = Warning only (no kick/ban)
+    - Positive number = Temporary ban duration in seconds
+  - Changes are saved immediately to config file
+  - Example: `/raeyn cheat checksum step 0 60` sets first violation to 60 second ban
+  - Example: `/raeyn cheat checksum step 9 -1` sets 10th violation to permanent ban
+
+### `/raeyn cheat passkey step [index] [duration]`
+Manage passkey punishment steps.
+- Requires operator permission level 2
+- **No arguments**: Lists all current passkey punishment steps
+- **With index only**: Shows the specific step at that index
+- **With index and duration**: Sets the punishment step to the specified duration
+  - Same parameters as checksum step command
+  - Example: `/raeyn cheat passkey step 0 300` sets first violation to 5 minute ban
+  - Example: `/raeyn cheat passkey step 4 -1` sets 5th violation to permanent ban
+
+## Passkey Event Logging
+
+All passkey-related events are automatically logged to `logs/cheat.log` for comprehensive audit trails.
+
+### Logged Events
+- **Server lifecycle**: Server start/stop events
+- **Passkey generation**: When passkeys are created for players (client/server)
+- **Passkey validation**: All validation attempts with success/failure status and reasons
+- **Manual violations**: Admin-triggered punishments via `/raeyn cheat passkey` command
+- **Player connections**: Player join/leave events with passkey details
+- **Encryption events**: Encryption/decryption operations
+- **Errors**: All passkey-related errors with stack traces
+
+### Log Format
+Each log entry includes:
+- Timestamp (format: `yyyy-MM-dd HH:mm:ss.SSS`)
+- Event type (GENERATION, VALIDATION, MANUAL_VIOLATION, etc.)
+- Status (SUCCESS/FAILURE)
+- Player username and UUID
+- Passkey (partially masked for security)
+- Failure reason (if applicable)
+- Detailed context information
+
+### Security
+- Passkeys are partially masked in logs (first 5 + last 5 characters visible)
+- Log file is thread-safe for concurrent access
+- Session separators track server restarts and player sessions
+
+### Example Log Entry
+```
+--------------------------------------------------------------------------------
+[2026-02-13 15:30:50.789] GENERATION - SUCCESS
+Player: Steve (UUID: 12345678-1234-1234-1234-123456789abc)
+Passkey: 2003,***[25 chars]***-1234
+Details: Passkey generated for player
+```
 
 ## Security Features
 
-- **Two-part passkey**: Secret!
-- **Passkey obfuscation**: Base64 encoding and string reversal to hide permanent key
+- **Passkey authentication**: Secure validation system
 - **Passkey validation**: Server validates client passkeys on connection
 - **XOR obfuscation**: Prevents simple reading of encrypted data
 - **AES encryption**: Using SHA-256 derived keys
@@ -157,8 +220,8 @@ The compiled JAR will be in `build/libs/`
 
 This mod includes comprehensive obfuscation to prevent decompilation and reverse engineering:
 - **ProGuard obfuscation** - Renames classes, methods, and fields to meaningless names
-- **Split permanent key** - Key stored in multiple parts and reconstructed at runtime
-- **Multi-layer encoding** - Base64 + string reversal + obfuscation
+- **Protected key storage** - Keys are protected against extraction
+- **Multi-layer encoding** - Multiple encoding layers for security
 - **Control flow obfuscation** - Makes code logic difficult to follow
 - **Aggressive optimization** - 9 optimization passes to obscure implementation
 

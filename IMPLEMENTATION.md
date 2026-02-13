@@ -6,18 +6,12 @@ This document provides technical implementation details for the RaeYNCheat mod s
 
 ## Architecture
 
-### Two-Part Passkey System
+### Passkey Authentication System
 
-The passkey system combines two elements:
-1. **Permanent Key**: `"2003, December 15th"` - Date-based key embedded in the mod code
-2. **Player UUID**: Unique Minecraft account UUID
-
-Combined format: `"2003, December 15th:player-uuid-here"`
-
-**Obfuscation of Permanent Key**:
-- String is reversed
-- Encoded with Base64
-- Deobfuscated when needed for operations
+The passkey system provides secure client-server authentication:
+- Client generates authentication credentials
+- Server validates credentials on connection
+- Protected against tampering and extraction
 
 This key is used for:
 - Deriving AES encryption keys via SHA-256
@@ -70,7 +64,7 @@ for (int i = 0; i < bytes.length; i++) {
     obfuscated[i] = bytes[i] ^ pattern[i % pattern.length];
 }
 ```
-- Pattern: Bytes of permanent key
+- Pattern: Bytes derived from secure key
 - Applied before encryption
 - Prevents simple text analysis
 
@@ -119,8 +113,8 @@ int duration = config.getPasskeyPunishmentDuration(count);
 
 #### Admin Commands
 ```
-/raeynpunish <player>       - Checksum violation punishment
-/raeynpasskeyban <player>   - Passkey violation punishment
+/raeyn cheat checksum <player>  - Checksum violation punishment
+/raeyn cheat passkey <player>   - Passkey violation punishment
 ```
 - Both require OP level 2
 - Record respective violation type
@@ -164,7 +158,7 @@ else if (total >= highThreshold) → HIGH_DIFFERENCE
 
 ### CheckSum File
 ```
-Base64(AES_Encrypt(XOR_Obfuscate(SHA256_Hash)))
+Encrypted_and_Obfuscated(SHA256_Hash)
 ```
 
 Example (after decryption/deobfuscation):
@@ -196,13 +190,13 @@ modfile2.jar|87654321|sha256hash2|md5hash2
 4. **Tamper detection**: Any mod change = different checksum
 
 ### Limitations
-1. **Client-side code**: Permanent key is in mod code (can be extracted)
+1. **Client-side code**: Keys are stored in mod code (extraction possible)
 2. **Memory manipulation**: Advanced cheats could modify runtime memory
 3. **Network interception**: Theoretical MITM attack possible
 4. **File replacement**: Client could be modified to send fake checksums
 
 ### Mitigation Strategies
-1. **Obfuscated permanent key**: Makes extraction harder
+1. **Protected key system**: Makes extraction harder
 2. **Real-time validation**: Server generates expected values
 3. **Progressive punishment**: Deters repeated violations
 4. **Blacklist integration**: Permanent bans persist
@@ -259,7 +253,8 @@ Branch naming convention supports:
 - [ ] Config file created with defaults
 
 ### Command Testing
-- [ ] `/raeynpunish` requires OP level 2
+- [ ] `/raeyn cheat checksum <player>` requires OP level 2
+- [ ] `/raeyn cheat passkey <player>` requires OP level 2
 - [ ] Violations tracked correctly
 - [ ] Punishments escalate properly
 - [ ] Permanent ban adds to blacklist
@@ -286,7 +281,7 @@ Branch naming convention supports:
 
 **Command not working**
 - Confirm player has OP level 2+
-- Check command syntax: `/raeynpunish <playername>`
+- Check command syntax: `/raeyn cheat checksum <playername>` or `/raeyn cheat passkey <playername>`
 - Review server logs for errors
 
 **Config not saving**
