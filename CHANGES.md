@@ -5,20 +5,16 @@ This document summarizes the improvements made to the RaeYNCheat mod system base
 
 ## Major Changes
 
-### 1. Date-Based Passkey System
-**Changed From:** Simple string permanent key (`"4pp7354Uc3!"`)
-**Changed To:** Date-based permanent key (`"2003, December 15th"`)
-
+### 1. Passkey Authentication System
 **Implementation:**
-- Permanent key is now stored in a date format
-- Key is obfuscated using Base64 encoding and string reversal
-- Deobfuscation happens at runtime when needed
-- Two-part passkey format: `"2003, December 15th:player-uuid"`
+- Secure passkey system for client authentication
+- Protected against tampering and extraction
+- Runtime validation
 
 **Benefits:**
-- More memorable format for the permanent key
-- Additional layer of obfuscation
-- Easy to update by changing the date
+- Secure client-server authentication
+- Additional layer of security
+- Prevents unauthorized access
 
 ### 2. Dual Violation Tracking System
 **Changed From:** Single violation counter for all violations
@@ -110,9 +106,9 @@ else if total >= 80% → TOTAL MISMATCH (wrong installation)
 
 ### Modified Files:
 1. `EncryptionUtil.java`
-   - Changed permanent key to date format
-   - Added obfuscation/deobfuscation methods
-   - Updated XOR patterns to use deobfuscated key
+   - Updated passkey system implementation
+   - Enhanced security measures
+   - Protected key handling
 
 2. `RaeYNCheatConfig.java`
    - Added passkey punishment configuration
@@ -226,7 +222,7 @@ else if total >= 80% → TOTAL MISMATCH (wrong installation)
 
 ## Security Improvements
 
-1. **Obfuscated Permanent Key:** Harder to extract from compiled code
+1. **Protected Key System:** Harder to extract from compiled code
 2. **Dual Validation:** Both passkey and checksum must match
 3. **Sensitivity Analysis:** Prevents punishment of accidental misconfigurations
 4. **Separate Violation Tracking:** More targeted anti-tampering measures
@@ -234,7 +230,7 @@ else if total >= 80% → TOTAL MISMATCH (wrong installation)
 ## Summary
 
 All requested features have been successfully implemented:
-- ✅ Date-based passkey with obfuscation
+- ✅ Secure passkey authentication system
 - ✅ Dual violation tracking (checksum + passkey)
 - ✅ Separate passkey punishment system
 - ✅ Sensitivity analysis for false positives

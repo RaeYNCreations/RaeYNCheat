@@ -5,7 +5,7 @@ A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fab
 ## Features
 
 - **Client-side mod verification** with CRC32, SHA-256, and MD5 checksums
-- **Two-part passkey system** - Secret, sorry!
+- **Passkey authentication system** for secure client-server validation
 - **Dual violation tracking** - separate systems for checksum and passkey violations
 - **Encryption and obfuscation** to prevent tampering
 - **Automatic check file generation** on each client launch and server connection
@@ -125,8 +125,7 @@ Manually punish a player for passkey verification failures.
 
 ## Security Features
 
-- **Two-part passkey**: Secret!
-- **Passkey obfuscation**: Base64 encoding and string reversal to hide permanent key
+- **Passkey authentication**: Secure validation system
 - **Passkey validation**: Server validates client passkeys on connection
 - **XOR obfuscation**: Prevents simple reading of encrypted data
 - **AES encryption**: Using SHA-256 derived keys
@@ -157,8 +156,8 @@ The compiled JAR will be in `build/libs/`
 
 This mod includes comprehensive obfuscation to prevent decompilation and reverse engineering:
 - **ProGuard obfuscation** - Renames classes, methods, and fields to meaningless names
-- **Split permanent key** - Key stored in multiple parts and reconstructed at runtime
-- **Multi-layer encoding** - Base64 + string reversal + obfuscation
+- **Protected key storage** - Keys are protected against extraction
+- **Multi-layer encoding** - Multiple encoding layers for security
 - **Control flow obfuscation** - Makes code logic difficult to follow
 - **Aggressive optimization** - 9 optimization passes to obscure implementation
 
