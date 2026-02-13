@@ -2,40 +2,49 @@ package com.raeyncreations.raeyncheat.client;
 
 import com.raeyncreations.raeyncheat.RaeYNCheat;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.nio.file.Path;
 
-public class RaeYNCheatClient implements ClientModInitializer {
+@Mod(value = RaeYNCheat.MOD_ID, dist = Dist.CLIENT)
+public class RaeYNCheatClient {
     
     private static CheckFileManager checkFileManager;
     
-    @Override
-    public void onInitializeClient() {
+    public RaeYNCheatClient(IEventBus modEventBus) {
+        modEventBus.addListener(this::clientSetup);
+        
+        // Register client events
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+    }
+    
+    private void clientSetup(final FMLClientSetupEvent event) {
         RaeYNCheat.LOGGER.info("RaeYNCheat client initialized");
         
         // Get paths
-        Path configDir = FabricLoader.getInstance().getConfigDir().resolve("RaeYNCheat");
-        Path modsDir = FabricLoader.getInstance().getGameDir().resolve("mods");
+        Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
+        Path modsDir = FMLPaths.GAMEDIR.get().resolve("mods");
         
         // Initialize check file manager
         checkFileManager = new CheckFileManager(configDir, modsDir);
         
         // Generate check file on client boot
         generateClientCheckFile();
-        
-        // Listen for server connection events
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            // Regenerate check file when joining server
-            generateClientCheckFile();
-        });
+    }
+    
+    private void onPlayerLoggedIn(final ClientPlayerNetworkEvent.LoggingIn event) {
+        // Regenerate check file when joining server
+        generateClientCheckFile();
     }
     
     private void generateClientCheckFile() {
         try {
-            // Get player UUID (use a placeholder for now, will be replaced with actual UUID)
             String playerUUID = getPlayerUUID();
             
             RaeYNCheat.LOGGER.info("Generating client check file...");
@@ -47,11 +56,10 @@ public class RaeYNCheatClient implements ClientModInitializer {
     }
     
     private String getPlayerUUID() {
-        // Try to get actual player UUID, fallback to placeholder
         try {
-            var client = net.minecraft.client.MinecraftClient.getInstance();
-            if (client.getSession() != null && client.getSession().getUuidOrNull() != null) {
-                return client.getSession().getUuidOrNull().toString();
+            var minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft.getUser() != null && minecraft.getUser().getProfileId() != null) {
+                return minecraft.getUser().getProfileId().toString();
             }
         } catch (Exception e) {
             RaeYNCheat.LOGGER.warn("Could not get player UUID, using placeholder");

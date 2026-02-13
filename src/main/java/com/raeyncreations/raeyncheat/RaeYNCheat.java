@@ -1,16 +1,88 @@
 package com.raeyncreations.raeyncheat;
 
-import net.fabricmc.api.ModInitializer;
+import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
+import com.raeyncreations.raeyncheat.server.PunishCommand;
+import com.raeyncreations.raeyncheat.util.CheckFileManager;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RaeYNCheat implements ModInitializer {
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+@Mod(RaeYNCheat.MOD_ID)
+public class RaeYNCheat {
     
     public static final String MOD_ID = "raeyncheat";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     
-    @Override
-    public void onInitialize() {
+    private static CheckFileManager checkFileManager;
+    private static RaeYNCheatConfig config;
+    private static final Map<UUID, Integer> playerViolations = new HashMap<>();
+    
+    public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
+        modEventBus.addListener(this::commonSetup);
+        
+        // Register server events
+        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+    }
+    
+    private void commonSetup(final FMLCommonSetupEvent event) {
         LOGGER.info("RaeYNCheat mod initialized");
+    }
+    
+    private void onServerStarted(final ServerStartedEvent event) {
+        LOGGER.info("RaeYNCheat server started");
+        
+        // Get paths
+        Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
+        Path modsClientDir = FMLPaths.GAMEDIR.get().resolve("mods_client");
+        Path configFile = configDir.resolve("config.json");
+        
+        // Load config
+        config = RaeYNCheatConfig.load(configFile);
+        
+        // Initialize check file manager
+        checkFileManager = new CheckFileManager(configDir, modsClientDir);
+        
+        // Generate CheckSum_init file on server boot
+        try {
+            LOGGER.info("Generating server CheckSum_init file...");
+            checkFileManager.generateServerInitCheckFile();
+            LOGGER.info("Server CheckSum_init file generated successfully");
+        } catch (Exception e) {
+            LOGGER.error("Error generating server CheckSum_init file", e);
+        }
+    }
+    
+    private void onRegisterCommands(final RegisterCommandsEvent event) {
+        PunishCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+    }
+    
+    public static void recordViolation(UUID playerUUID) {
+        int violations = playerViolations.getOrDefault(playerUUID, 0) + 1;
+        playerViolations.put(playerUUID, violations);
+        
+        int duration = config.getPunishmentDuration(violations);
+        LOGGER.warn("Player " + playerUUID + " has " + violations + " violations. Punishment duration: " + 
+            (duration == -1 ? "PERMANENT" : duration + " seconds"));
+    }
+    
+    public static RaeYNCheatConfig getConfig() {
+        return config;
+    }
+    
+    public static CheckFileManager getCheckFileManager() {
+        return checkFileManager;
     }
 }

@@ -1,73 +1,74 @@
 package com.raeyncreations.raeyncheat.server;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.raeyncreations.raeyncheat.RaeYNCheat;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.UUID;
 
 public class PunishCommand {
     
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, 
-                                CommandRegistryAccess registryAccess,
-                                CommandManager.RegistrationEnvironment environment) {
-        dispatcher.register(CommandManager.literal("raeynpunish")
-            .requires(source -> source.hasPermissionLevel(2))
-            .then(CommandManager.argument("player", StringArgumentType.string())
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
+                                CommandBuildContext buildContext,
+                                Commands.CommandSelection commandSelection) {
+        dispatcher.register(Commands.literal("raeynpunish")
+            .requires(source -> source.hasPermission(2))
+            .then(Commands.argument("player", StringArgumentType.string())
                 .executes(context -> punishPlayer(context))
             )
         );
     }
     
-    private static int punishPlayer(CommandContext<ServerCommandSource> context) {
+    private static int punishPlayer(CommandContext<CommandSourceStack> context) {
         String playerName = StringArgumentType.getString(context, "player");
-        ServerCommandSource source = context.getSource();
+        CommandSourceStack source = context.getSource();
         
         try {
             // Find player by name
-            ServerPlayerEntity targetPlayer = source.getServer().getPlayerManager().getPlayer(playerName);
+            ServerPlayer targetPlayer = source.getServer().getPlayerList().getPlayerByName(playerName);
             
             if (targetPlayer == null) {
-                source.sendFeedback(() -> Text.literal("Player not found: " + playerName), false);
+                source.sendFailure(Component.literal("Player not found: " + playerName));
                 return 0;
             }
             
-            UUID playerUUID = targetPlayer.getUuid();
+            UUID playerUUID = targetPlayer.getUUID();
             
             // Record violation
-            RaeYNCheatServer.recordViolation(playerUUID);
+            RaeYNCheat.recordViolation(playerUUID);
             
             // Get punishment duration
             int violations = 1; // This would come from the violation tracking system
-            int duration = RaeYNCheatServer.getConfig().getPunishmentDuration(violations);
+            int duration = RaeYNCheat.getConfig().getPunishmentDuration(violations);
             
             if (duration == -1) {
                 // Permanent ban
-                targetPlayer.networkHandler.disconnect(Text.literal("You have been permanently banned for mod violations"));
-                source.getServer().getPlayerManager().getUserBanList().add(
-                    new com.mojang.authlib.GameProfile(playerUUID, playerName)
+                targetPlayer.connection.disconnect(Component.literal("You have been permanently banned for mod violations"));
+                source.getServer().getPlayerList().getBans().add(
+                    new GameProfile(playerUUID, playerName)
                 );
-                source.sendFeedback(() -> Text.literal("Player " + playerName + " has been permanently banned"), true);
+                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been permanently banned"), true);
             } else if (duration > 0) {
                 // Temporary ban
-                targetPlayer.networkHandler.disconnect(Text.literal("You have been temporarily banned for " + duration + " seconds"));
-                source.sendFeedback(() -> Text.literal("Player " + playerName + " has been kicked (ban duration: " + duration + "s)"), true);
+                targetPlayer.connection.disconnect(Component.literal("You have been temporarily banned for " + duration + " seconds"));
+                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been kicked (ban duration: " + duration + "s)"), true);
             } else {
                 // Just warn
-                targetPlayer.sendMessage(Text.literal("Warning: Mod verification failed"), false);
-                source.sendFeedback(() -> Text.literal("Player " + playerName + " has been warned"), true);
+                targetPlayer.sendSystemMessage(Component.literal("Warning: Mod verification failed"));
+                source.sendSuccess(() -> Component.literal("Player " + playerName + " has been warned"), true);
             }
             
             return 1;
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error punishing player", e);
-            source.sendFeedback(() -> Text.literal("Error punishing player: " + e.getMessage()), false);
+            source.sendFailure(Component.literal("Error punishing player: " + e.getMessage()));
             return 0;
         }
     }
