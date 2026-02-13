@@ -21,26 +21,21 @@ public class PlayerConnectionHandler {
             String playerUUID = player.getUUID().toString();
             String playerUsername = player.getName().getString();
             
-            // Generate expected passkey for this player
-            String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
-            
             // Log the player connection event
             PasskeyLogger.logSessionSeparator("Player Connected: " + playerUsername + " (UUID: " + playerUUID + ")");
             
             RaeYNCheat.LOGGER.info("Player {} (UUID: {}) connected to server", playerUsername, playerUUID);
             
-            // TODO: Actual passkey validation would happen here when network protocol is implemented
-            // For now, we just log the connection and expected passkey
-            PasskeyLogger.logGeneration(playerUsername, playerUUID, expectedPasskey);
-            
             try {
                 // Generate server-side check file for this player
+                // Note: generateServerCheckFile already logs the passkey generation internally
                 if (RaeYNCheat.getCheckFileManager() != null) {
                     RaeYNCheat.getCheckFileManager().generateServerCheckFile(playerUUID, playerUsername);
                     RaeYNCheat.LOGGER.info("Generated server check file for player {}", playerUsername);
                 }
             } catch (Exception e) {
                 RaeYNCheat.LOGGER.error("Failed to generate server check file for player " + playerUsername, e);
+                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
                 PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
                     "SERVER_CHECK_FILE_GENERATION", 
                     "Failed to generate server check file", e);

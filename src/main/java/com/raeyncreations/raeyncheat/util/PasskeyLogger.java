@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter;
  */
 public class PasskeyLogger {
     
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private static Path logFile;
     private static final Object LOCK = new Object();
     
@@ -52,7 +52,7 @@ public class PasskeyLogger {
                 try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
                     writer.println("================================================================================");
                     writer.println("RaeYNCheat Passkey Event Log");
-                    writer.println("Log Started: " + LocalDateTime.now().format(DATE_FORMAT));
+                    writer.println("Log Started: " + LocalDateTime.now().format(TIMESTAMP_FORMAT));
                     writer.println("================================================================================");
                     writer.println();
                 }
@@ -131,7 +131,7 @@ public class PasskeyLogger {
         try {
             synchronized (LOCK) {
                 try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)))) {
-                    String timestamp = LocalDateTime.now().format(DATE_FORMAT);
+                    String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
                     String status = success ? "SUCCESS" : "FAILURE";
                     
                     writer.println("--------------------------------------------------------------------------------");
@@ -165,13 +165,17 @@ public class PasskeyLogger {
             return "NULL";
         }
         
-        if (passkey.length() <= 10) {
-            // For short passkeys, mask more aggressively
-            return passkey.substring(0, Math.min(2, passkey.length())) + "****" + 
-                   (passkey.length() > 2 ? passkey.substring(passkey.length() - 1) : "");
+        if (passkey.length() <= 3) {
+            // For very short passkeys, show only first char + asterisks
+            return passkey.substring(0, 1) + "****";
         }
         
-        // For longer passkeys, show more context
+        if (passkey.length() <= 10) {
+            // For short passkeys, show first 2 and last 1
+            return passkey.substring(0, 2) + "****" + passkey.substring(passkey.length() - 1);
+        }
+        
+        // For longer passkeys, show more context (first 5 and last 5)
         int prefixLen = 5;
         int suffixLen = 5;
         String prefix = passkey.substring(0, prefixLen);
@@ -193,7 +197,7 @@ public class PasskeyLogger {
                     writer.println();
                     writer.println("================================================================================");
                     writer.println(message);
-                    writer.println("Timestamp: " + LocalDateTime.now().format(DATE_FORMAT));
+                    writer.println("Timestamp: " + LocalDateTime.now().format(TIMESTAMP_FORMAT));
                     writer.println("================================================================================");
                     writer.println();
                 }
