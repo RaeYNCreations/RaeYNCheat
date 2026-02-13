@@ -137,12 +137,32 @@ Manually punish a player for passkey verification failures.
 
 ## Building
 
-### Fabric
+### Standard Build (Development)
 ```bash
 ./gradlew build
 ```
+Output: `build/libs/raeyncheat-1.0.0.jar`
+
+### Obfuscated Build (Production/Distribution)
+```bash
+./gradlew proguard
+```
+Output: `build/libs/raeyncheat-1.0.0-obfuscated.jar`
+
+**Important**: Always distribute the obfuscated version to protect against decompilation. See [OBFUSCATION.md](OBFUSCATION.md) for details.
 
 The compiled JAR will be in `build/libs/`
+
+## Code Protection
+
+This mod includes comprehensive obfuscation to prevent decompilation and reverse engineering:
+- **ProGuard obfuscation** - Renames classes, methods, and fields to meaningless names
+- **Split permanent key** - Key stored in multiple parts and reconstructed at runtime
+- **Multi-layer encoding** - Base64 + string reversal + obfuscation
+- **Control flow obfuscation** - Makes code logic difficult to follow
+- **Aggressive optimization** - 9 optimization passes to obscure implementation
+
+See [OBFUSCATION.md](OBFUSCATION.md) for complete details on anti-decompilation measures.
 
 ## Development
 

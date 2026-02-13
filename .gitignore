@@ -34,3 +34,10 @@ Thumbs.db
 *.swp
 *.bak
 *~
+
+# ProGuard
+proguard/
+proguard_map.txt
+proguard_seeds.txt
+proguard_usage.txt
+

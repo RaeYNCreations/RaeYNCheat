@@ -10,15 +10,33 @@ import java.util.Base64;
 public class EncryptionUtil {
     
     // Permanent key in date format: "2003, December 15th"
-    private static final String PERMANENT_KEY_RAW = "2003, December 15th";
+    // Split into multiple parts to make it harder to find in decompiled code
+    private static final String PERMANENT_KEY_PART1 = "2003";
+    private static final String PERMANENT_KEY_PART2 = ", ";
+    private static final String PERMANENT_KEY_PART3 = "December";
+    private static final String PERMANENT_KEY_PART4 = " ";
+    private static final String PERMANENT_KEY_PART5 = "15th";
     private static final String ALGORITHM = "AES";
+    
+    // Reconstruct the permanent key at runtime
+    private static String reconstructPermanentKey() {
+        // Use StringBuilder to make it harder to track
+        StringBuilder sb = new StringBuilder();
+        sb.append(PERMANENT_KEY_PART1);
+        sb.append(PERMANENT_KEY_PART2);
+        sb.append(PERMANENT_KEY_PART3);
+        sb.append(PERMANENT_KEY_PART4);
+        sb.append(PERMANENT_KEY_PART5);
+        return sb.toString();
+    }
     
     /**
      * Get the obfuscated permanent key
      */
     private static String getPermanentKey() {
         // Simple obfuscation using Base64 and reverse
-        String reversed = new StringBuilder(PERMANENT_KEY_RAW).reverse().toString();
+        String key = reconstructPermanentKey();
+        String reversed = new StringBuilder(key).reverse().toString();
         return Base64.getEncoder().encodeToString(reversed.getBytes(StandardCharsets.UTF_8));
     }
     
@@ -30,7 +48,7 @@ public class EncryptionUtil {
             String decoded = new String(Base64.getDecoder().decode(getPermanentKey()), StandardCharsets.UTF_8);
             return new StringBuilder(decoded).reverse().toString();
         } catch (Exception e) {
-            return PERMANENT_KEY_RAW; // Fallback to raw key if deobfuscation fails
+            return reconstructPermanentKey(); // Fallback to reconstructed key if deobfuscation fails
         }
     }
     

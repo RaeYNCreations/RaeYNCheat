@@ -15,6 +15,16 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+// ProGuard configuration for obfuscation
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.guardsquare:proguard-gradle:7.4.2'
+    }
+}
+
 runs {
     configureEach {
         systemProperty 'forge.logging.markers', 'REGISTRIES'
@@ -72,3 +82,22 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// ProGuard obfuscation task
+task proguard(type: proguard.gradle.ProGuardTask, dependsOn: jar) {
+    injars jar.archiveFile.get().asFile
+    outjars file("${buildDir}/libs/${mod_id}-${version}-obfuscated.jar")
+    
+    // Include Java runtime
+    libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
+    
+    // Include dependencies
+    configurations.runtimeClasspath.each { file ->
+        libraryjars file, filter: '!META-INF/**'
+    }
+    
+    configuration file('proguard-rules.pro')
+}
+
+// Make build depend on proguard
+build.dependsOn proguard
