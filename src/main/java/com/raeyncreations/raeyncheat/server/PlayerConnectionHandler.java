@@ -20,8 +20,9 @@ public class PlayerConnectionHandler {
      */
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            String playerUUID = player.getUUID().toString();
-            String playerUsername = player.getName().getString();
+            // Safely retrieve player information with null checks
+            String playerUUID = player.getUUID() != null ? player.getUUID().toString() : "Unknown-UUID";
+            String playerUsername = player.getName() != null ? player.getName().getString() : "Unknown-Player";
             
             // Log the player connection event
             PasskeyLogger.logSessionSeparator("Player Connected: " + playerUsername + " (UUID: " + playerUUID + ")");
@@ -35,8 +36,9 @@ public class PlayerConnectionHandler {
      */
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            String playerUUID = player.getUUID().toString();
-            String playerUsername = player.getName().getString();
+            // Safely retrieve player information with null checks
+            String playerUUID = player.getUUID() != null ? player.getUUID().toString() : "Unknown-UUID";
+            String playerUsername = player.getName() != null ? player.getName().getString() : "Unknown-Player";
             
             PasskeyLogger.logSessionSeparator("Player Disconnected: " + playerUsername + " (UUID: " + playerUUID + ")");
             

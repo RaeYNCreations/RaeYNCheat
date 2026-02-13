@@ -244,7 +244,13 @@ public class RaeYNCommand {
         int duration = IntegerArgumentType.getInteger(context, "duration");
         
         try {
-            boolean success = RaeYNCheat.getConfig().setChecksumPunishmentStep(index, duration);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            boolean success = config.setChecksumPunishmentStep(index, duration);
             
             if (success) {
                 RaeYNCheat.saveConfig();
@@ -272,7 +278,13 @@ public class RaeYNCommand {
         int index = IntegerArgumentType.getInteger(context, "index");
         
         try {
-            int duration = RaeYNCheat.getConfig().getChecksumPunishmentStep(index);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            int duration = config.getChecksumPunishmentStep(index);
             
             if (RaeYNCheatConfig.isInvalidStepIndex(duration)) {
                 source.sendFailure(Component.literal("Invalid step index: " + index));
@@ -294,7 +306,13 @@ public class RaeYNCommand {
         CommandSourceStack source = context.getSource();
         
         try {
-            String steps = RaeYNCheat.getConfig().getChecksumPunishmentStepsString();
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            String steps = config.getChecksumPunishmentStepsString();
             source.sendSuccess(() -> Component.literal("Checksum punishment steps: " + steps), false);
             return 1;
         } catch (Exception e) {
@@ -310,7 +328,13 @@ public class RaeYNCommand {
         int duration = IntegerArgumentType.getInteger(context, "duration");
         
         try {
-            boolean success = RaeYNCheat.getConfig().setPasskeyPunishmentStep(index, duration);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            boolean success = config.setPasskeyPunishmentStep(index, duration);
             
             if (success) {
                 RaeYNCheat.saveConfig();
@@ -338,7 +362,13 @@ public class RaeYNCommand {
         int index = IntegerArgumentType.getInteger(context, "index");
         
         try {
-            int duration = RaeYNCheat.getConfig().getPasskeyPunishmentStep(index);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            int duration = config.getPasskeyPunishmentStep(index);
             
             if (RaeYNCheatConfig.isInvalidStepIndex(duration)) {
                 source.sendFailure(Component.literal("Invalid step index: " + index));
@@ -360,7 +390,13 @@ public class RaeYNCommand {
         CommandSourceStack source = context.getSource();
         
         try {
-            String steps = RaeYNCheat.getConfig().getPasskeyPunishmentStepsString();
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded"));
+                return 0;
+            }
+            
+            String steps = config.getPasskeyPunishmentStepsString();
             source.sendSuccess(() -> Component.literal("Passkey punishment steps: " + steps), false);
             return 1;
         } catch (Exception e) {

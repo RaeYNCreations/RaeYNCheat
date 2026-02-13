@@ -107,7 +107,15 @@ public record SyncPacket(String passkey, String checksum) implements CustomPacke
     }
     
     /**
-     * Validate that a string is valid Base64 format (allowing : for passkey separator)
+     * Validate that a string is valid Base64 format
+     * 
+     * Note: This validation allows the colon (:) character in addition to standard Base64
+     * characters (A-Za-z0-9+/=). The colon is required for the two-part passkey format
+     * which includes a separator between the permanent key and hashed UUID components.
+     * Format: "PermanentKey:HashedUUID"
+     * 
+     * @param data The string to validate
+     * @return true if the string contains only valid Base64 characters and colon, false otherwise
      */
     private static boolean isValidBase64Format(String data) {
         if (data == null || data.isEmpty()) {
