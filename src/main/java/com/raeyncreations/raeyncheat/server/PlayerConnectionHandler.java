@@ -6,6 +6,8 @@ import com.raeyncreations.raeyncheat.util.EncryptionUtil;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
+import java.io.FileNotFoundException;
+
 /**
  * Server-side event handler for player connections
  * Logs passkey-related events when players join
@@ -32,7 +34,23 @@ public class PlayerConnectionHandler {
                 if (RaeYNCheat.getCheckFileManager() != null) {
                     RaeYNCheat.getCheckFileManager().generateServerCheckFile(playerUUID, playerUsername);
                     RaeYNCheat.LOGGER.info("Generated server check file for player {}", playerUsername);
+                } else {
+                    RaeYNCheat.LOGGER.warn("CheckFileManager not initialized, cannot generate check file for player {}", playerUsername);
                 }
+            } catch (FileNotFoundException e) {
+                RaeYNCheat.LOGGER.error("CheckSum_init file not found when generating check file for player {}: {}", 
+                    playerUsername, e.getMessage());
+                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
+                PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
+                    "CHECKSUM_INIT_NOT_FOUND", 
+                    "CheckSum_init file not found - server may not have generated it yet", e);
+            } catch (IllegalStateException e) {
+                RaeYNCheat.LOGGER.error("Invalid state when generating check file for player {}: {}", 
+                    playerUsername, e.getMessage());
+                String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
+                PasskeyLogger.logError(playerUsername, playerUUID, expectedPasskey, 
+                    "INVALID_STATE", 
+                    "CheckSum_init file may be corrupted or empty: " + e.getMessage(), e);
             } catch (Exception e) {
                 RaeYNCheat.LOGGER.error("Failed to generate server check file for player " + playerUsername, e);
                 String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);

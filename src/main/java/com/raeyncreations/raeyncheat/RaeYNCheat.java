@@ -78,14 +78,21 @@ public class RaeYNCheat {
         // Initialize check file manager
         checkFileManager = new CheckFileManager(configDir, modsClientDir);
         
-        // Generate CheckSum_init file on server boot
+        // Generate CheckSum_init file on server boot with comprehensive error handling
         try {
             LOGGER.info("Generating server CheckSum_init file...");
             checkFileManager.generateServerInitCheckFile();
             LOGGER.info("Server CheckSum_init file generated successfully");
             lastRefreshDate = LocalDate.now(); // Track initial generation
+        } catch (IllegalStateException e) {
+            LOGGER.error("CheckSum_init generation failed - state error: {}", e.getMessage());
+            LOGGER.warn("Server will continue but mod verification may not work properly");
+        } catch (FileNotFoundException e) {
+            LOGGER.error("CheckSum_init generation failed - directory not found: {}", e.getMessage());
+            LOGGER.warn("Please ensure mods_client directory exists");
         } catch (Exception e) {
             LOGGER.error("Error generating server CheckSum_init file", e);
+            LOGGER.warn("Server will continue but mod verification may not work properly");
         }
     }
     
