@@ -49,6 +49,10 @@ public class ChecksumUtil {
     public static List<FileChecksum> calculateDirectoryChecksums(Path directory) throws Exception {
         List<FileChecksum> checksums = new ArrayList<>();
         
+        if (directory == null) {
+            throw new IllegalArgumentException("Directory path cannot be null");
+        }
+        
         File dir = directory.toFile();
         if (!dir.exists() || !dir.isDirectory()) {
             throw new FileNotFoundException("Directory not found: " + directory);
@@ -56,7 +60,12 @@ public class ChecksumUtil {
         
         File[] jarFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
         if (jarFiles == null) {
-            return checksums;
+            throw new FileNotFoundException("Unable to list files in directory: " + directory);
+        }
+        
+        if (jarFiles.length == 0) {
+            System.err.println("Warning: No JAR files found in directory: " + directory);
+            return checksums; // Return empty list
         }
         
         // Sort files by name for consistent ordering
@@ -64,9 +73,13 @@ public class ChecksumUtil {
         
         for (File jarFile : jarFiles) {
             try {
-                checksums.add(calculateFileChecksum(jarFile.toPath()));
+                FileChecksum checksum = calculateFileChecksum(jarFile.toPath());
+                if (checksum != null) {
+                    checksums.add(checksum);
+                }
             } catch (Exception e) {
                 System.err.println("Error calculating checksum for " + jarFile.getName() + ": " + e.getMessage());
+                // Continue processing other files
             }
         }
         
@@ -77,10 +90,20 @@ public class ChecksumUtil {
      * Create a temporary file with checksum data and calculate its checksum
      */
     public static String calculateAggregateChecksum(List<FileChecksum> checksums) throws Exception {
+        if (checksums == null || checksums.isEmpty()) {
+            throw new IllegalArgumentException("Checksum list cannot be null or empty");
+        }
+        
         // Create temp file with all checksums
         StringBuilder content = new StringBuilder();
         for (FileChecksum checksum : checksums) {
-            content.append(checksum.toString()).append("\n");
+            if (checksum != null) {
+                content.append(checksum.toString()).append("\n");
+            }
+        }
+        
+        if (content.length() == 0) {
+            throw new IllegalStateException("No valid checksums found to aggregate");
         }
         
         // Calculate SHA-256 hash of the aggregated content

@@ -78,11 +78,23 @@ public class CheckFileManager {
         // Calculate checksums for all JAR files in mods_client
         List<ChecksumUtil.FileChecksum> checksums = ChecksumUtil.calculateDirectoryChecksums(modsDir);
         
+        if (checksums == null || checksums.isEmpty()) {
+            throw new IllegalStateException("No JAR files found in mods directory: " + modsDir);
+        }
+        
         // Calculate aggregate checksum
         String aggregateChecksum = ChecksumUtil.calculateAggregateChecksum(checksums);
         
+        if (aggregateChecksum == null || aggregateChecksum.isEmpty()) {
+            throw new IllegalStateException("Failed to calculate aggregate checksum");
+        }
+        
         // Obfuscate (but don't encrypt yet)
         String obfuscated = EncryptionUtil.obfuscate(aggregateChecksum);
+        
+        if (obfuscated == null || obfuscated.isEmpty()) {
+            throw new IllegalStateException("Failed to obfuscate checksum");
+        }
         
         // Write to CheckSum_init file
         Path checkSumInitFile = configDir.resolve("CheckSum_init");
@@ -102,14 +114,26 @@ public class CheckFileManager {
         
         String obfuscated = Files.readString(checkSumInitFile);
         
+        if (obfuscated == null || obfuscated.trim().isEmpty()) {
+            throw new IllegalStateException("CheckSum_init file is empty or invalid");
+        }
+        
         // Generate two-part passkey for this player
         String passkey = EncryptionUtil.generatePasskey(playerUUID);
+        
+        if (passkey == null || passkey.isEmpty()) {
+            throw new IllegalStateException("Failed to generate passkey for player: " + playerUsername);
+        }
         
         // Log passkey generation
         PasskeyLogger.logGeneration(playerUsername, playerUUID, passkey);
         
         // Encrypt the obfuscated data
         String encrypted = EncryptionUtil.encrypt(obfuscated, passkey);
+        
+        if (encrypted == null || encrypted.isEmpty()) {
+            throw new IllegalStateException("Failed to encrypt checksum data");
+        }
         
         // Write to CheckSum file
         Path checkSumFile = configDir.resolve("CheckSum");

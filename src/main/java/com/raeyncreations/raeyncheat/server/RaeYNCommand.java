@@ -31,6 +31,9 @@ public class RaeYNCommand {
                     .then(Commands.argument("player", StringArgumentType.string())
                         .executes(context -> punishChecksumViolation(context))
                     )
+                    .then(Commands.literal("refresh")
+                        .executes(context -> refreshChecksumInit(context))
+                    )
                     .then(Commands.literal("step")
                         .then(Commands.argument("index", IntegerArgumentType.integer(0, 29))
                             .then(Commands.argument("duration", IntegerArgumentType.integer(-1))
@@ -333,6 +336,33 @@ public class RaeYNCommand {
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Error listing passkey steps", e);
             source.sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+    
+    /**
+     * Manually refresh the CheckSum_init file
+     */
+    private static int refreshChecksumInit(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        
+        try {
+            if (RaeYNCheat.getCheckFileManager() == null) {
+                source.sendFailure(Component.literal("CheckFileManager not initialized"));
+                return 0;
+            }
+            
+            // Refresh the CheckSum_init file
+            RaeYNCheat.getCheckFileManager().generateServerInitCheckFile();
+            
+            String adminUsername = source.getTextName();
+            RaeYNCheat.LOGGER.info("CheckSum_init file manually refreshed by {}", adminUsername);
+            
+            source.sendSuccess(() -> Component.literal("CheckSum_init file has been refreshed successfully"), true);
+            return 1;
+        } catch (Exception e) {
+            RaeYNCheat.LOGGER.error("Error refreshing CheckSum_init file", e);
+            source.sendFailure(Component.literal("Error refreshing CheckSum_init: " + e.getMessage()));
             return 0;
         }
     }
