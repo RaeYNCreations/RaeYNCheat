@@ -49,6 +49,7 @@ public class RaeYNCheat {
     private static volatile LocalDate lastRefreshDate = null;
     private static volatile boolean midnightRefreshEnabled = true;
     private static final AtomicBoolean midnightRefreshInProgress = new AtomicBoolean(false);
+    private static final Object MIDNIGHT_REFRESH_LOCK = new Object();
     private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "RaeYNCheat-Scheduler");
         t.setDaemon(true);
@@ -136,7 +137,7 @@ public class RaeYNCheat {
     
     /**
      * Check every server tick for midnight to auto-refresh CheckSum_init
-     * Uses atomic flag and ScheduledExecutorService to prevent race conditions
+     * Uses atomic flag, synchronized lock, and ScheduledExecutorService to prevent race conditions
      */
     private void onServerTick(final ServerTickEvent.Pre event) {
         if (!midnightRefreshEnabled || checkFileManager == null || scheduledExecutor.isShutdown()) {
@@ -153,20 +154,30 @@ public class RaeYNCheat {
                 && now.getMinute() == 0
                 && now.getSecond() < 10
                 && midnightRefreshInProgress.compareAndSet(false, true)) {
-            try {
-                LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
-                checkFileManager.generateServerInitCheckFile();
-                lastRefreshDate = today;
-                LOGGER.info("CheckSum_init file auto-refreshed successfully");
-            } catch (Exception e) {
-                LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
-            } finally {
-                // Schedule flag reset after 15 seconds using ScheduledExecutorService
-                try {
-                    scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
-                } catch (java.util.concurrent.RejectedExecutionException e) {
-                    // Executor was shut down, reset flag immediately
+            
+            // Use synchronized block to ensure only one refresh happens even if multiple threads pass the atomic check
+            synchronized (MIDNIGHT_REFRESH_LOCK) {
+                // Double-check after acquiring lock
+                if (lastRefreshDate != null && lastRefreshDate.equals(today)) {
                     midnightRefreshInProgress.set(false);
+                    return;
+                }
+                
+                try {
+                    LOGGER.info("Auto-refreshing CheckSum_init file at midnight...");
+                    checkFileManager.generateServerInitCheckFile();
+                    lastRefreshDate = today;
+                    LOGGER.info("CheckSum_init file auto-refreshed successfully");
+                } catch (Exception e) {
+                    LOGGER.error("Error auto-refreshing CheckSum_init file at midnight", e);
+                } finally {
+                    // Schedule flag reset after 15 seconds using ScheduledExecutorService
+                    try {
+                        scheduledExecutor.schedule(() -> midnightRefreshInProgress.set(false), 15, TimeUnit.SECONDS);
+                    } catch (java.util.concurrent.RejectedExecutionException e) {
+                        // Executor was shut down, reset flag immediately
+                        midnightRefreshInProgress.set(false);
+                    }
                 }
             }
         }
@@ -202,28 +213,28 @@ public class RaeYNCheat {
     }
     
     public static void recordChecksumViolation(UUID playerUUID) {
-        int violations = checksumViolations.getOrDefault(playerUUID, 0) + 1;
-        checksumViolations.put(playerUUID, violations);
+        // Use atomic merge operation to ensure thread-safety
+        int violations = checksumViolations.merge(playerUUID, 1, Integer::sum);
         
         if (config != null) {
             int duration = config.getPunishmentDuration(violations);
-            LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Punishment duration: " + 
-                (duration == -1 ? "PERMANENT" : duration + " seconds"));
+            LOGGER.warn("Player {} has {} checksum violations. Punishment duration: {}", 
+                playerUUID, violations, (duration == -1 ? "PERMANENT" : duration + " seconds"));
         } else {
-            LOGGER.warn("Player " + playerUUID + " has " + violations + " checksum violations. Config not loaded.");
+            LOGGER.warn("Player {} has {} checksum violations. Config not loaded.", playerUUID, violations);
         }
     }
     
     public static void recordPasskeyViolation(UUID playerUUID) {
-        int violations = passkeyViolations.getOrDefault(playerUUID, 0) + 1;
-        passkeyViolations.put(playerUUID, violations);
+        // Use atomic merge operation to ensure thread-safety
+        int violations = passkeyViolations.merge(playerUUID, 1, Integer::sum);
         
         if (config != null) {
             int duration = config.getPasskeyPunishmentDuration(violations);
-            LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Punishment duration: " + 
-                (duration == -1 ? "PERMANENT" : duration + " seconds"));
+            LOGGER.warn("Player {} has {} passkey violations. Punishment duration: {}", 
+                playerUUID, violations, (duration == -1 ? "PERMANENT" : duration + " seconds"));
         } else {
-            LOGGER.warn("Player " + playerUUID + " has " + violations + " passkey violations. Config not loaded.");
+            LOGGER.warn("Player {} has {} passkey violations. Config not loaded.", playerUUID, violations);
         }
     }
     

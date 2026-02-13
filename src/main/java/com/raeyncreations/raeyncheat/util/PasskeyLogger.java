@@ -71,7 +71,10 @@ public class PasskeyLogger {
                             
                             // Check for log rotation
                             if (Files.size(logFile) > MAX_LOG_SIZE) {
-                                rotateLog(writer);
+                                // Close current writer before rotation
+                                writer.close();
+                                rotateLog();
+                                // Open new writer after rotation
                                 writer = new PrintWriter(new BufferedWriter(new FileWriter(logFile.toFile(), true)));
                             }
                         }
@@ -80,7 +83,11 @@ public class PasskeyLogger {
                     RaeYNCheat.LOGGER.error("Error in PasskeyLogger thread", e);
                 } finally {
                     if (writer != null) {
-                        writer.close();
+                        try {
+                            writer.close();
+                        } catch (Exception e) {
+                            // Ignore close errors during shutdown
+                        }
                     }
                 }
             }, "PasskeyLogger-Async");
@@ -92,12 +99,11 @@ public class PasskeyLogger {
     /**
      * Rotate log file when it exceeds max size
      */
-    private static void rotateLog(PrintWriter currentWriter) {
+    private static void rotateLog() {
         try {
-            currentWriter.close();
             Path archived = logFile.getParent().resolve("cheat.log." + System.currentTimeMillis());
             Files.move(logFile, archived);
-            RaeYNCheat.LOGGER.info("Rotated log file to: " + archived);
+            RaeYNCheat.LOGGER.info("Rotated log file to: {}", archived);
         } catch (IOException e) {
             RaeYNCheat.LOGGER.error("Failed to rotate log file", e);
         }

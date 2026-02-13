@@ -88,7 +88,16 @@ public class RaeYNCommand {
             
             // Get punishment duration based on actual violation count
             int violations = RaeYNCheat.getChecksumViolationCount(playerUUID);
-            int duration = RaeYNCheat.getConfig().getPunishmentDuration(violations);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            
+            // Handle missing config gracefully
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded. Cannot apply punishment."));
+                RaeYNCheat.LOGGER.error("Config not loaded, cannot punish player {}", playerName);
+                return 0;
+            }
+            
+            int duration = config.getPunishmentDuration(violations);
             
             if (duration == -1) {
                 // Permanent ban
@@ -158,7 +167,16 @@ public class RaeYNCommand {
             
             // Get punishment duration based on passkey violations
             int violations = RaeYNCheat.getPasskeyViolationCount(playerUUID);
-            int duration = RaeYNCheat.getConfig().getPasskeyPunishmentDuration(violations);
+            RaeYNCheatConfig config = RaeYNCheat.getConfig();
+            
+            // Handle missing config gracefully
+            if (config == null) {
+                source.sendFailure(Component.literal("Configuration not loaded. Cannot apply punishment."));
+                RaeYNCheat.LOGGER.error("Config not loaded, cannot punish player {}", playerName);
+                return 0;
+            }
+            
+            int duration = config.getPasskeyPunishmentDuration(violations);
             
             String punishmentType;
             
