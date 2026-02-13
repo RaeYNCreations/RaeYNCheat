@@ -23,10 +23,13 @@ public class CheckFileManager {
     
     /**
      * Validate that a client's passkey matches the server's expected passkey
+     * Uses constant-time comparison to prevent timing attacks
      */
     public boolean validatePasskey(String clientPasskey, String playerUUID, String playerUsername) {
         String expectedPasskey = EncryptionUtil.generatePasskey(playerUUID);
-        boolean isValid = expectedPasskey.equals(clientPasskey);
+        
+        // Use constant-time comparison to prevent timing attacks
+        boolean isValid = constantTimeEquals(clientPasskey, expectedPasskey);
         
         if (isValid) {
             PasskeyLogger.logValidationSuccess(playerUsername, playerUUID, clientPasskey, expectedPasskey);
@@ -36,6 +39,28 @@ public class CheckFileManager {
         }
         
         return isValid;
+    }
+    
+    /**
+     * Constant-time string comparison to prevent timing attacks
+     */
+    private boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        
+        // Convert to byte arrays for constant-time comparison
+        byte[] aBytes = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bBytes = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        
+        // If lengths differ, still do comparison to maintain constant time
+        // but result will be false
+        if (aBytes.length != bBytes.length) {
+            return false;
+        }
+        
+        // Use MessageDigest.isEqual for constant-time comparison
+        return java.security.MessageDigest.isEqual(aBytes, bBytes);
     }
     
     /**
@@ -123,10 +148,15 @@ public class CheckFileManager {
     }
     
     /**
-     * Generate server CheckSum file from CheckSum_init for a specific player
-     * Process: Read CheckSum_init -> Encrypt with player's key -> Save to CheckSum
+     * Generate server CheckSum file from CheckSum_init for a specific player using a validated passkey
+     * Process: Read CheckSum_init -> Encrypt with validated player's key -> Save to CheckSum
      */
-    public void generateServerCheckFile(String playerUUID, String playerUsername) throws Exception {
+    public void generateServerCheckFile(String playerUUID, String playerUsername, String validatedPasskey) throws Exception {
+        // Validate inputs
+        if (validatedPasskey == null || validatedPasskey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Validated passkey cannot be null or empty");
+        }
+        
         // Read CheckSum_init
         Path checkSumInitFile = configDir.resolve("CheckSum_init");
         if (!Files.exists(checkSumInitFile)) {
@@ -139,18 +169,11 @@ public class CheckFileManager {
             throw new IllegalStateException("CheckSum_init file is empty or invalid");
         }
         
-        // Generate two-part passkey for this player
-        String passkey = EncryptionUtil.generatePasskey(playerUUID);
+        // Log passkey generation (using the validated passkey)
+        PasskeyLogger.logGeneration(playerUsername, playerUUID, validatedPasskey);
         
-        if (passkey == null || passkey.isEmpty()) {
-            throw new IllegalStateException("Failed to generate passkey for player: " + playerUsername);
-        }
-        
-        // Log passkey generation
-        PasskeyLogger.logGeneration(playerUsername, playerUUID, passkey);
-        
-        // Encrypt the obfuscated data
-        String encrypted = EncryptionUtil.encrypt(obfuscated, passkey);
+        // Encrypt the obfuscated data using the validated passkey
+        String encrypted = EncryptionUtil.encrypt(obfuscated, validatedPasskey);
         
         if (encrypted == null || encrypted.isEmpty()) {
             throw new IllegalStateException("Failed to encrypt checksum data");

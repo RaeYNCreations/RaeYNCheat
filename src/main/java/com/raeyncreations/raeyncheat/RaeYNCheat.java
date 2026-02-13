@@ -1,6 +1,7 @@
 package com.raeyncreations.raeyncheat;
 
 import com.raeyncreations.raeyncheat.config.RaeYNCheatConfig;
+import com.raeyncreations.raeyncheat.network.NetworkHandler;
 import com.raeyncreations.raeyncheat.server.PlayerConnectionHandler;
 import com.raeyncreations.raeyncheat.server.RaeYNCommand;
 import com.raeyncreations.raeyncheat.util.CheckFileManager;
@@ -40,11 +41,17 @@ public class RaeYNCheat {
     private static final Map<UUID, Integer> passkeyViolations = new java.util.concurrent.ConcurrentHashMap<>();
     
     // Midnight auto-refresh tracking
-    private static LocalDate lastRefreshDate = null;
-    private static boolean midnightRefreshEnabled = true;
+    private static volatile LocalDate lastRefreshDate = null;
+    private static volatile boolean midnightRefreshEnabled = true;
     
     public RaeYNCheat(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
+        
+        // Register network packets
+        modContainer.registerExtensionPoint(
+            net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent.class,
+            event -> NetworkHandler.register(event.registrar(MOD_ID))
+        );
         
         // Register server events
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
