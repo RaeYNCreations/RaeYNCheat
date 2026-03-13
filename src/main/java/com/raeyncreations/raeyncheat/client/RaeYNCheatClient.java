@@ -11,171 +11,208 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Mod(value = RaeYNCheat.MOD_ID, dist = Dist.CLIENT)
 public class RaeYNCheatClient {
-    
+
     private static final AtomicReference<CheckFileManager> checkFileManager = new AtomicReference<>();
-    
+
+    // ── Revalidation state ────────────────────────────────────────────────────
+    private static final AtomicLong    lastSyncTime          = new AtomicLong(0);
+    private static final AtomicBoolean connected             = new AtomicBoolean(false);
+    /** Set when a RevalidatePacket arrives; cleared once we respond. */
+    private static final AtomicBoolean revalidationRequested = new AtomicBoolean(false);
+    /**
+     * FIX #10 (nonce echo): Stores the nonce from the most recent RevalidatePacket so it
+     * can be echoed back in the SyncPacket. Empty string = login sync (no nonce issued yet).
+     */
+    private static final AtomicReference<String> pendingNonce = new AtomicReference<>("");
+
+    /** Client tick counter — only read/written from the client main thread. Not volatile by design. */
+    private static int tickCounter = 0;
+    private static final int TICK_CHECK_INTERVAL = 20;
+
     public RaeYNCheatClient(IEventBus modEventBus) {
         modEventBus.addListener(this::clientSetup);
-        
-        // Register client events
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(this::onClientTick);
     }
-    
+
+    // ---------------------------------------------------------------------------
+    // Setup
+    // ---------------------------------------------------------------------------
+
     private void clientSetup(final FMLClientSetupEvent event) {
-        RaeYNCheat.LOGGER.info("RaeYNCheat client initialized");
-        
+        RaeYNCheat.LOGGER.info("RaeYNCheat client initialized.");
         try {
-            // Get paths
             Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
-            Path modsDir = FMLPaths.GAMEDIR.get().resolve("mods");
-            
-            // Validate mods directory exists
-            if (!java.nio.file.Files.exists(modsDir)) {
-                RaeYNCheat.LOGGER.warn("mods directory does not exist at: {}. Client check file generation is DISABLED.", modsDir);
-                return; // Exit early, checkFileManager remains null
+            Path modsDir   = FMLPaths.GAMEDIR.get().resolve("mods");
+
+            if (!Files.exists(modsDir)) {
+                RaeYNCheat.LOGGER.warn("mods/ directory not found at {}. Client verification DISABLED.", modsDir);
+                return;
             }
-            
-            // Initialize check file manager only if directory exists
-            CheckFileManager manager = new CheckFileManager(configDir, modsDir);
-            checkFileManager.set(manager);
-            
-            // Generate check file on client boot
-            generateClientCheckFile();
+
+            checkFileManager.set(new CheckFileManager(configDir, modsDir));
+            RaeYNCheat.LOGGER.info("RaeYNCheat CheckFileManager ready.");
+
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.error("Error during client initialization", e);
-            RaeYNCheat.LOGGER.warn("Client check file generation is DISABLED due to initialization failure");
+            RaeYNCheat.LOGGER.error("RaeYNCheat client initialization error", e);
             checkFileManager.set(null);
         }
     }
-    
+
+    // ---------------------------------------------------------------------------
+    // Connection events
+    // ---------------------------------------------------------------------------
+
     private void onPlayerLoggedIn(final ClientPlayerNetworkEvent.LoggingIn event) {
-        // Regenerate check file and send to server when joining
+        connected.set(true);
+        lastSyncTime.set(0);
+        pendingNonce.set(""); // Login sync has no nonce — server accepts empty on first contact.
         if (checkFileManager.get() != null) {
-            generateClientCheckFileAndSync();
-        } else {
-            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping client check file generation and sync");
+            performFullSync("LOGIN", "");
         }
     }
-    
-    private void generateClientCheckFile() {
-        // Only generate if checkFileManager is initialized
-        CheckFileManager manager = checkFileManager.get();
-        if (manager == null) {
-            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation");
+
+    private void onPlayerLoggedOut(final ClientPlayerNetworkEvent.LoggingOut event) {
+        connected.set(false);
+        lastSyncTime.set(0);
+        pendingNonce.set("");
+        revalidationRequested.set(false);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Client tick
+    // ---------------------------------------------------------------------------
+
+    private void onClientTick(final ClientTickEvent.Pre event) {
+        if (!connected.get() || checkFileManager.get() == null) return;
+
+        // FIX #10: Drain the pending nonce before using it so concurrent triggers don't race.
+        if (revalidationRequested.compareAndSet(true, false)) {
+            String nonce = pendingNonce.getAndSet("");
+            RaeYNCheat.LOGGER.info("Processing server-requested revalidation (nonce: {}).",
+                    nonce.isEmpty() ? "none" : "present");
+            performFullSync("SERVER_REQUEST", nonce);
             return;
         }
-        
-        try {
-            String playerUUID = getPlayerUUID();
-            String playerUsername = getPlayerUsername();
-            
-            RaeYNCheat.LOGGER.info("Generating client check file...");
-            manager.generateClientCheckFile(playerUUID, playerUsername);
-            RaeYNCheat.LOGGER.info("Client check file generated successfully");
-        } catch (Exception e) {
-            RaeYNCheat.LOGGER.error("Error generating client check file", e);
+
+        if (++tickCounter < TICK_CHECK_INTERVAL) return;
+        tickCounter = 0;
+
+        int intervalSeconds = 300;
+        long now     = System.currentTimeMillis();
+        long elapsed = (now - lastSyncTime.get()) / 1000L;
+
+        if (lastSyncTime.get() > 0 && elapsed >= intervalSeconds) {
+            RaeYNCheat.LOGGER.info("Periodic revalidation triggered ({}s elapsed).", elapsed);
+            // Periodic self-driven sync has no nonce — server only enforces nonce on
+            // RevalidatePacket responses, not on client-initiated syncs.
+            performFullSync("PERIODIC", "");
         }
     }
-    
-    private void generateClientCheckFileAndSync() {
-        // Only generate and sync if checkFileManager is initialized
+
+    // ---------------------------------------------------------------------------
+    // Called from RevalidatePacket.handle() — static, called from network thread context
+    // ---------------------------------------------------------------------------
+
+    /**
+     * FIX #10: Accepts the nonce from the RevalidatePacket and stores it for the next sync.
+     */
+    public static void triggerRevalidation(String nonce) {
+        pendingNonce.set(nonce != null ? nonce : "");
+        revalidationRequested.set(true);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Core sync logic
+    // ---------------------------------------------------------------------------
+
+    private static void performFullSync(String reason, String nonce) {
         CheckFileManager manager = checkFileManager.get();
-        if (manager == null) {
-            RaeYNCheat.LOGGER.debug("CheckFileManager not initialized, skipping check file generation and sync");
-            return;
-        }
-        
+        if (manager == null) return;
+
         try {
-            String playerUUID = getPlayerUUID();
+            String playerUUID     = getPlayerUUID();
             String playerUsername = getPlayerUsername();
-            
-            RaeYNCheat.LOGGER.info("Generating client check file...");
-            manager.generateClientCheckFile(playerUUID, playerUsername);
-            RaeYNCheat.LOGGER.info("Client check file generated successfully");
-            
-            // Read the generated CheckSum file
-            Path configDir = FMLPaths.CONFIGDIR.get().resolve("RaeYNCheat");
-            Path checkSumFile = configDir.resolve("CheckSum");
-            
-            if (!Files.exists(checkSumFile)) {
-                RaeYNCheat.LOGGER.error("CheckSum file not found after generation at: {}", checkSumFile);
-                RaeYNCheat.LOGGER.error("Cannot sync with server - check file generation failed");
+
+            // ── 1. Generate checksum in memory (no disk round-trip) ──────────
+            RaeYNCheat.LOGGER.info("[{}] Generating client checksum for {} ...", reason, playerUsername);
+            String clientChecksum = manager.generateClientChecksumInMemory(playerUUID, playerUsername);
+            if (clientChecksum == null || clientChecksum.isEmpty()) {
+                RaeYNCheat.LOGGER.error("[{}] Client checksum generation returned empty result.", reason);
                 return;
             }
-            
-            String clientChecksum = Files.readString(checkSumFile).trim();
-            
-            // Validate checksum is not empty (trim() never returns null)
-            if (clientChecksum.isEmpty()) {
-                RaeYNCheat.LOGGER.error("Generated CheckSum file is empty or invalid");
-                RaeYNCheat.LOGGER.error("Cannot sync with server - invalid checksum");
-                return;
-            }
-            
-            // Generate passkey
+
+            // ── 2. Derive passkey ─────────────────────────────────────────────
             String clientPasskey = EncryptionUtil.generatePasskey(playerUUID).trim();
-            
-            // Validate passkey is not empty (trim() never returns null)
             if (clientPasskey.isEmpty()) {
-                RaeYNCheat.LOGGER.error("Generated passkey is empty or invalid");
-                RaeYNCheat.LOGGER.error("Cannot sync with server - invalid passkey");
+                RaeYNCheat.LOGGER.error("[{}] Generated passkey is empty.", reason);
                 return;
             }
-            
-            // Send sync packet to server
-            RaeYNCheat.LOGGER.info("Sending sync packet to server (passkey length: {}, checksum length: {})...", 
-                clientPasskey.length(), clientChecksum.length());
-            PacketDistributor.sendToServer(new SyncPacket(clientPasskey, clientChecksum));
-            RaeYNCheat.LOGGER.info("Sync packet sent to server successfully");
-            
+
+            // ── 3. Run environment scan and encrypt the report ────────────────
+            RaeYNCheat.LOGGER.info("[{}] Running environment scan...", reason);
+            String rawReport       = EnvironmentScanner.generateReport();
+            String encryptedReport = EncryptionUtil.encrypt(rawReport, clientPasskey);
+            if (encryptedReport == null || encryptedReport.isEmpty()) {
+                RaeYNCheat.LOGGER.error("[{}] Environment report encryption failed.", reason);
+                return;
+            }
+
+            // ── 4. Send SyncPacket with nonce echo ────────────────────────────
+            RaeYNCheat.LOGGER.info("[{}] Sending SyncPacket (nonce: {})...", reason,
+                    nonce.isEmpty() ? "none" : "present");
+            PacketDistributor.sendToServer(
+                    new SyncPacket(clientPasskey, clientChecksum, encryptedReport, nonce));
+            lastSyncTime.set(System.currentTimeMillis());
+            RaeYNCheat.LOGGER.info("[{}] SyncPacket sent.", reason);
+
         } catch (Exception e) {
-            RaeYNCheat.LOGGER.error("Error generating client check file and syncing", e);
+            RaeYNCheat.LOGGER.error("[{}] Error during full sync", reason, e);
         }
     }
-    
-    private String getPlayerUUID() {
+
+    // ---------------------------------------------------------------------------
+    // Identity helpers
+    // ---------------------------------------------------------------------------
+
+    private static String getPlayerUUID() {
         try {
-            var minecraft = net.minecraft.client.Minecraft.getInstance();
-            if (minecraft != null && minecraft.getUser() != null) {
-                var profileId = minecraft.getUser().getProfileId();
-                if (profileId != null) {
-                    return profileId.toString();
-                }
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.getUser() != null) {
+                var id = mc.getUser().getProfileId();
+                if (id != null) return id.toString();
             }
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Could not get player UUID", e);
         }
-        
-        // If UUID cannot be retrieved, this is a critical error
-        // Don't use a placeholder UUID as it would allow all players without UUIDs to share the same passkey
         throw new IllegalStateException("Authentication failed - unable to verify client identity");
     }
-    
-    private String getPlayerUsername() {
+
+    private static String getPlayerUsername() {
         try {
-            var minecraft = net.minecraft.client.Minecraft.getInstance();
-            if (minecraft != null && minecraft.getUser() != null) {
-                var name = minecraft.getUser().getName();
-                if (name != null) {
-                    return name;
-                }
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.getUser() != null) {
+                var name = mc.getUser().getName();
+                if (name != null) return name;
             }
         } catch (Exception e) {
             RaeYNCheat.LOGGER.error("Could not get player username", e);
         }
-        
-        // Return a default that won't break the system
         return "Unknown";
     }
-    
+
     public static CheckFileManager getCheckFileManager() {
         return checkFileManager.get();
     }

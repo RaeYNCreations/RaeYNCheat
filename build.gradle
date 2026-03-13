@@ -48,6 +48,9 @@ repositories {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neoforge_version}"
+    // SQLite JDBC — Jar-in-Jar so it ships with the mod
+    jarJar('org.xerial:sqlite-jdbc:3.45.1.0') { version { strictly '[3.45,4)' } }
+    jarJar('com.mysql:mysql-connector-j:8.3.0') { version { strictly '[8,9)' } }
 }
 
 tasks.withType(ProcessResources).configureEach {

@@ -1,61 +1,92 @@
 # RaeYNCheat
 
-A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (Fabric & Neoforge) that uses encrypted checksums and passkey validation to verify client-side mods.
+A comprehensive mod verification and anti-cheat system for Minecraft 1.21.1 (NeoForge) that uses encrypted checksums, passkey validation, and real-time environment scanning to verify client-side mods and detect injection attacks.
 
 ## Features
 
 - **Client-side mod verification** with CRC32, SHA-256, and MD5 checksums
 - **Passkey authentication system** for secure client-server validation
-- **Dual violation tracking** - separate systems for checksum and passkey violations
-- **Encryption and obfuscation** to prevent tampering
+- **Environment scanning** — detects JVM agent injection, side-loaded JARs, ghost mods, and ClassLoader anomalies
+- **Encrypted environment reports** — scan results are encrypted before transmission; cannot be fabricated without the correct passkey
+- **Periodic re-validation** — server continuously re-checks all online players at a configurable interval (not just on login)
+- **Admin-triggered revalidation** — force an immediate re-check of one player or all online players via command
+- **Triple violation tracking** — separate systems for checksum, passkey, and environment violations
+- **Violation persistence** — violation records survive server restarts; expire after a configurable number of days
+- **Multi-layer encryption and obfuscation** to prevent tampering (details withheld — see Code Protection)
+- **Hardened key derivation** — [REDACTED] key pipeline baked into the JAR; key material is not stored in any config file or external location
+- **Midnight key rollover** — keys rotate at midnight with a grace window to prevent false positives at the boundary
 - **Automatic check file generation** on each client launch and server connection
 - **Server-side verification** comparing client mods against expected mods
-- **Passkey synchronization** - client passkeys validated against server
-- **Progressive punishment systems** with configurable ban durations for both violations
-- **Admin commands** for managing both checksum and passkey punishments
-- **Comprehensive passkey logging** - all passkey events logged to `logs/cheat.log` for audit trail
+- **Progressive punishment systems** with configurable ban durations for all three violation types
+- **Admin commands** for managing punishments, punishment step tuning, and manual revalidation
+- **Comprehensive audit logging** — all validation events logged to `logs/cheat.log` with async I/O
 
 ## Branches
 
-- `fabric-1.21.1` - Fabric mod loader for Minecraft 1.21.1
-- `neoforge-1.21.1` - Neoforge mod loader for Minecraft 1.21.1
+- `neoforge-1.21.1` — NeoForge mod loader for Minecraft 1.21.1
 
-Branch naming convention allows for future version ports (e.g., `fabric-1.21.8`, `neoforge-1.21.11`, etc.)
+Branch naming convention allows for future version ports (e.g., `neoforge-1.21.4`, `neoforge-1.22.x`, etc.)
+
+---
 
 ## How It Works
 
 ### Client Side
 
-1. On game launch, the client generates a two-part passkey
-2. Scans all JAR files in the `mods` folder
-3. Calculates CRC/hash/checksum for each JAR
-4. Creates an aggregate checksum of all mod checksums
-5. Obfuscates and encrypts the aggregate checksum
-6. Stores the encrypted result in `config/RaeYNCheat/CheckSum`
-7. Sends passkey to server for validation
+1. On game launch, the client initializes and prepares the mod scanner
+2. On server connection:
+   - Scans all JAR files in the `mods` folder
+   - Calculates CRC32, SHA-256, and MD5 for each JAR
+   - Generates an aggregate checksum of all individual checksums
+   - Derives a two-part passkey [REDACTED — key derivation details withheld]
+   - Runs the environment scanner (JVM args, extra directories, ModList, ClassLoader)
+   - Encrypts both the aggregate checksum and the environment report
+   - Sends all three to the server in a single packet
+3. Responds to periodic revalidation requests from the server by repeating this process
 
 ### Server Side
 
-1. On server boot, scans JAR files in `mods_client` folder (expected client mods)
-2. Generates `CheckSum_init` file (obfuscated but not yet encrypted)
-3. When a player connects:
-   - Validates the client's passkey against expected passkey
-   - Generates a unique two-part passkey for that player
-   - Encrypts the `CheckSum_init` with the player's key
-   - Compares the server-generated checksum with the client's checksum
-   - Authenticates or denies based on comparison
+1. On server boot:
+   - Scans JAR files in `mods_client` folder (expected client mods)
+   - Generates the server-side reference checksum
+2. When a player connects (or revalidation is triggered):
+   - **Phase 1 — Passkey**: Validates the client's passkey against the expected value for that UUID. Supports a short grace window around midnight to prevent false positives during key rollover.
+   - **Phase 2 — Checksum**: Generates the expected encrypted checksum in memory using the validated passkey; compares against the client's submission. No shared files involved — each player's check is fully isolated.
+   - **Phase 3 — Environment**: Decrypts and analyses the environment report. Flags JVM agents, unexpected JARs, runtime-injected mods, and ClassLoader anomalies based on configured policy.
+3. Any failed phase records a violation, logs the event, and applies the configured punishment.
+
+### What It Detects
+
+- Modified or replaced JAR files in the client's `mods` folder
+- Extra JAR files in side-load directories outside `mods/`
+- Java agents injected via `-javaagent:` JVM argument
+- JVM bootstrap classpath manipulation (`-Xbootclasspath`)
+- Native JVMTI agents (`-agentlib:`, `-agentpath:`)
+- Other non-whitelisted JVM arguments
+- Mods present in the NeoForge ModList at runtime but absent from disk (ghost mods — injection indicator)
+- Unexpected entries in the ClassLoader hierarchy pointing outside the game directory
+
+### What It Does Not Detect
+
+- Hypervisor or OS-level cheats operating below the JVM
+- Hardware-level input injection (mouse/keyboard emulation at driver level)
+- A sufficiently determined reverse engineer given time with the JAR (ProGuard raises the bar significantly but is not absolute)
+
+---
 
 ## Installation
 
 ### Client
 1. Place the mod JAR in your `mods` folder
-2. Launch the game - the mod will automatically generate check files
+2. Launch the game — the mod will initialize automatically on first run
 
 ### Server
 1. Place the mod JAR in your `mods` folder
-2. Create a `mods_client` folder in the server root directory
-3. Place all expected client mods in `mods_client`
-4. Launch the server - the mod will generate the initial check file
+2. Create a `mods_client` folder in the server root directory (same level as `mods`)
+3. Place all expected client mod JARs in `mods_client`
+4. Launch the server — the reference checksum will be generated automatically
+
+---
 
 ## Configuration
 
@@ -64,252 +95,248 @@ Configuration file: `config/RaeYNCheat/config.json`
 ```json
 {
   "enablePunishmentSystem": true,
-  "punishmentSteps": [
-    60,      // 1 minute
-    300,     // 5 minutes
-    600,     // 10 minutes
-    1800,    // 30 minutes
-    3600,    // 1 hour
-    7200,    // 2 hours
-    14400,   // 4 hours
-    28800,   // 8 hours
-    86400,   // 24 hours
-    -1       // Permanent ban
-  ],
+  "punishmentSteps": [0, 3600, 86400, -1],
+
   "enablePasskeyPunishmentSystem": true,
-  "passkeyPunishmentSteps": [
-    300,     // 5 minutes
-    1800,    // 30 minutes
-    7200,    // 2 hours
-    86400,   // 24 hours
-    -1       // Permanent ban
-  ]
+  "passkeyPunishmentSteps": [0, 3600, 86400, -1],
+
+  "envPunishmentSteps": [0, 0, 3600, -1],
+
+  "periodicRevalidationSeconds": 300,
+
+  "enforceJvmArgCheck": true,
+  "enforceExtraJarCheck": true,
+  "enforceGhostModCheck": true,
+  "enforceClassLoaderCheck": false,
+
+  "violationExpiryDays": 30
 }
 ```
 
 ### Punishment Steps
-- Each step represents the ban duration in seconds
-- `-1` indicates a permanent ban (also adds player to blacklist)
-- `0` indicates a warning only
-- Only positive integers, `0`, or `-1` are allowed
-- Maximum of 30 steps can be configured
-- Punishment escalates with each violation
+- Each entry is the ban duration in seconds for that violation count (index 0 = 1st offence)
+- `-1` = permanent ban (also adds the player to Minecraft's ban list)
+- `0` = kick without ban
+- Positive integer = temporary ban in seconds
+- Up to 30 steps can be configured; the last step repeats for all subsequent violations
+- Changes take effect immediately and are saved to disk
 
-### Dual Punishment Systems
-- **Checksum violations** - for mod list mismatches
-- **Passkey violations** - for passkey validation failures (more aggressive by default)
+### Environment Check Policy
+
+| Field | Default | Description |
+|---|---|---|
+| `enforceJvmArgCheck` | `true` | Punish on flagged JVM arguments (agents, bootclasspath, etc.) |
+| `enforceExtraJarCheck` | `true` | Punish on unexpected JARs outside `mods/` |
+| `enforceGhostModCheck` | `true` | Punish on runtime mods with no corresponding file on disk |
+| `enforceClassLoaderCheck` | `false` | Punish on ClassLoader anomalies (may have false positives with some launchers — enable after calibrating on your player base) |
+
+### Periodic Revalidation
+
+`periodicRevalidationSeconds` controls how often the server sends a revalidation request to each online player. Default 300 (every 5 minutes). Set to `0` to disable (login-only validation). Minimum enforced value is 60 seconds.
+
+### Violation Expiry
+
+`violationExpiryDays` controls how long violation records are retained. Set to `0` to disable expiry (violations persist indefinitely until manually cleared). Default is 30 days.
+
+---
 
 ## Admin Commands
 
-### `/raeyn cheat checksum <player>`
-Manually punish a player for checksum verification failures.
-- Requires operator permission level 2
-- Records a checksum violation and applies punishment based on violation count
-- Progressive punishment according to configured checksum punishment steps
+All commands require operator permission level 2.
 
-### `/raeyn cheat passkey <player>`
-Manually punish a player for passkey verification failures.
-- Requires operator permission level 2
-- Records a passkey violation and applies punishment based on passkey violation count
-- Progressive punishment according to configured passkey punishment steps
-- More aggressive by default since passkey failures are more suspicious
-- Logs the manual violation to `logs/cheat.log` with admin username and punishment details
+### Checksum Commands
 
-### `/raeyn cheat checksum step [index] [duration]`
-Manage checksum punishment steps.
-- Requires operator permission level 2
-- **No arguments**: Lists all current checksum punishment steps
-- **With index only**: Shows the specific step at that index
-- **With index and duration**: Sets the punishment step to the specified duration
-  - `index`: Step number (0-29, where 0 is first violation, 1 is second, etc.)
-  - `duration`: 
-    - `-1` = Permanent ban
-    - `0` = Warning only (no kick/ban)
-    - Positive number = Temporary ban duration in seconds
-  - Changes are saved immediately to config file
-  - Example: `/raeyn cheat checksum step 0 60` sets first violation to 60 second ban
-  - Example: `/raeyn cheat checksum step 9 -1` sets 10th violation to permanent ban
+| Command | Description |
+|---|---|
+| `/raeyn cheat checksum <player>` | Manually apply a checksum violation to an online player |
+| `/raeyn cheat checksum refresh` | Rebuild the server-side reference checksum (use after updating `mods_client`) |
+| `/raeyn cheat checksum step` | List all current checksum punishment steps |
+| `/raeyn cheat checksum step <index>` | Show the punishment step at a specific index |
+| `/raeyn cheat checksum step <index> <duration>` | Set a checksum punishment step |
 
-### `/raeyn cheat passkey step [index] [duration]`
-Manage passkey punishment steps.
-- Requires operator permission level 2
-- **No arguments**: Lists all current passkey punishment steps
-- **With index only**: Shows the specific step at that index
-- **With index and duration**: Sets the punishment step to the specified duration
-  - Same parameters as checksum step command
-  - Example: `/raeyn cheat passkey step 0 300` sets first violation to 5 minute ban
-  - Example: `/raeyn cheat passkey step 4 -1` sets 5th violation to permanent ban
+### Passkey Commands
 
-## Passkey Event Logging
+| Command | Description |
+|---|---|
+| `/raeyn cheat passkey <player>` | Manually apply a passkey violation to an online player |
+| `/raeyn cheat passkey step` | List all current passkey punishment steps |
+| `/raeyn cheat passkey step <index>` | Show the punishment step at a specific index |
+| `/raeyn cheat passkey step <index> <duration>` | Set a passkey punishment step |
 
-All passkey-related events are automatically logged to `logs/cheat.log` for comprehensive audit trails.
+### Environment Commands
+
+| Command | Description |
+|---|---|
+| `/raeyn cheat env <player>` | Manually apply an environment violation to an online player |
+| `/raeyn cheat env step` | List all current environment punishment steps |
+| `/raeyn cheat env step <index>` | Show the punishment step at a specific index |
+| `/raeyn cheat env step <index> <duration>` | Set an environment punishment step |
+
+### Revalidation Commands
+
+| Command | Description |
+|---|---|
+| `/raeyn cheat revalidate <player>` | Send an immediate revalidation request to one online player |
+| `/raeyn cheat revalidate all` | Send an immediate revalidation request to all online players |
+
+Results of manually triggered revalidations appear in `logs/cheat.log` within seconds.
+
+---
+
+## Audit Logging
+
+All validation events are automatically logged to `logs/cheat.log`.
 
 ### Async Logging Architecture
-The PasskeyLogger uses asynchronous logging to prevent I/O bottlenecks during player validation:
-- Events are queued (max 1000 entries) and written by a background thread
-- No performance impact on player login validation
-- Automatic log rotation at 10 MB file size
-- Graceful shutdown ensures all queued events are written
-
-**Note:** Due to async logging, log entries may appear with a slight delay (typically <100ms). All events are guaranteed to be written before server shutdown.
+The logger uses asynchronous I/O to prevent bottlenecks during player validation:
+- Events are queued and written by a dedicated background thread
+- Queue overflow is detected and recorded as a summary entry rather than silently dropped
+- Automatic log rotation at 10 MB
+- Graceful shutdown ensures all queued events are flushed before the server stops
 
 ### Logged Events
-- **Server lifecycle**: Server start/stop events
-- **Passkey generation**: When passkeys are created for players (client/server)
-- **Passkey validation**: All validation attempts with success/failure status and reasons
-- **Manual violations**: Admin-triggered punishments via `/raeyn cheat passkey` command
-- **Player connections**: Player join/leave events with passkey details
-- **Encryption events**: Encryption/decryption operations
-- **Errors**: All passkey-related errors with stack traces
+- Server start/stop lifecycle
+- Validation results (passkey, checksum, environment) — success and failure
+- Violation details (what was flagged, how many violations on record)
+- Manual admin-triggered violations (includes admin username)
+- Player connect/disconnect events
+- Errors with stack traces
+- Queue overflow warnings
 
 ### Log Format
-Each log entry includes:
-- Timestamp (format: `yyyy-MM-dd HH:mm:ss.SSS`)
-- Event type (GENERATION, VALIDATION, MANUAL_VIOLATION, etc.)
-- Status (SUCCESS/FAILURE)
-- Player username and UUID
-- Passkey (partially masked for security)
-- Failure reason (if applicable)
-- Detailed context information
-
-### Security
-- Passkeys are partially masked in logs (first 5 + last 5 characters visible)
-- Log file is thread-safe for concurrent access
-- Session separators track server restarts and player sessions
-
-### Example Log Entry
 ```
 --------------------------------------------------------------------------------
-[2026-02-13 15:30:50.789] GENERATION - SUCCESS
+[2026-03-10 02:15:30.123] VALIDATION - FAILURE
 Player: Steve (UUID: 12345678-1234-1234-1234-123456789abc)
-Passkey: 2003,***[25 chars]***-1234
-Details: Passkey generated for player
+Type: ENV_VIOLATION
+Details: JVM_FLAG:JAVAAGENT, MOD_GHOST:suspiciousmod
 ```
 
-## Security Features
+### Security
+- Passkeys are never written to the log in any form
+- Log file access is thread-safe
+- Session separators are written at each server start/stop for clear audit trail boundaries
 
-- **Passkey authentication**: Secure validation system with SHA-256 hashed UUIDs
-- **Passkey validation**: Server validates client passkeys on connection
-- **XOR obfuscation**: Prevents simple reading of encrypted data
-- **AES/GCM encryption**: Authenticated encryption with 128-bit authentication tag
-- **PBKDF2 key derivation**: 10,000 iterations for strong key stretching
-- **Random IV per encryption**: Prevents pattern analysis attacks
-- **Real-time generation**: Check files generated fresh on each connection
-- **Tamper-proof**: Keys cannot be manipulated in real-time, GCM detects tampering
-- **Dual violation tracking**: Separate tracking for checksum and passkey violations
-- **Async logging**: High-performance event logging with automatic rotation
+---
 
-## Building
+## Security Architecture
 
-### Standard Build (Development)
-```bash
-./gradlew build
-```
-Output: `build/libs/raeyncheat-1.0.0.jar`
+- **[REDACTED] key derivation** — multiple private transformation stages baked into the JAR; no key material is stored externally or in config files
+- **Date-based key rotation** — keys rotate daily, preventing replay attacks across sessions
+- **Midnight grace window** — prevents false positives when a packet crosses the midnight boundary
+- **AES/GCM authenticated encryption** — [REDACTED implementation details] — detects any in-transit tampering
+- **PBKDF2 key stretching** — [REDACTED iteration count and parameters]
+- **Per-encryption random IV** — prevents pattern analysis
+- **Encrypted environment reports** — reports are encrypted with the player's passkey before transmission; a fabricated clean report requires breaking the passkey derivation first
+- **Checksum generated in memory** — no shared files in the validation hot path; concurrent logins cannot interfere with each other
+- **Violation persistence** — violations survive server restarts; players cannot reset their record by forcing a crash or restart
+- **ProGuard obfuscation** — see Code Protection
 
-### Obfuscated Build (Production/Distribution)
-```bash
-./gradlew proguard
-```
-Output: `build/libs/raeyncheat-1.0.0-obfuscated.jar`
-
-**Important**: Always distribute the obfuscated version to protect against decompilation. See [OBFUSCATION.md](OBFUSCATION.md) for details.
-
-The compiled JAR will be in `build/libs/`
+---
 
 ## Code Protection
 
-This mod includes comprehensive obfuscation to prevent decompilation and reverse engineering:
-- **ProGuard obfuscation** - Renames classes, methods, and fields to meaningless names
-- **Protected key storage** - Keys are protected against extraction
-- **Multi-layer encoding** - Multiple encoding layers for security
-- **Control flow obfuscation** - Makes code logic difficult to follow
-- **Aggressive optimization** - 9 optimization passes to obscure implementation
+**Always distribute the obfuscated build.** The development build contains readable class and method names.
 
-See [OBFUSCATION.md](OBFUSCATION.md) for complete details on anti-decompilation measures.
+```bash
+# Development build
+./gradlew build
+# Output: build/libs/raeyncheat-1.0.0.jar
 
-## Development
+# Production/distribution build (obfuscated)
+./gradlew proguard
+# Output: build/libs/raeyncheat-1.0.0-obfuscated.jar
+```
+
+ProGuard applies the following protections (specific configuration details withheld):
+- Class, method, and field renaming to non-descriptive identifiers
+- [REDACTED — obfuscation pass details withheld]
+- Control flow obfuscation
+- Aggressive optimization to obscure implementation logic
+
+See `OBFUSCATION.md` for configuration details (not for public distribution).
+
+---
+
+## Project Structure
+
+```
+src/main/java/com/raeyncreations/raeyncheat/
+├── RaeYNCheat.java                  # Main mod class — server init, periodic revalidation ticker
+├── client/
+│   ├── RaeYNCheatClient.java        # Client entry point — scan, encrypt, send, handle revalidation
+│   └── EnvironmentScanner.java      # JVM args, extra dirs, ModList cross-ref, ClassLoader scan
+├── config/
+│   └── RaeYNCheatConfig.java        # Config handling, violation persistence, punishment steps
+├── server/
+│   ├── PlayerConnectionHandler.java # Login/logout event handlers
+│   ├── ValidationHandler.java       # Three-phase validation (passkey, checksum, environment)
+│   └── RaeYNCommand.java            # Admin commands
+├── network/
+│   ├── NetworkHandler.java          # Packet registration
+│   ├── SyncPacket.java              # Client→Server: passkey + checksum + encrypted env report
+│   └── RevalidatePacket.java        # Server→Client: trigger a fresh scan and SyncPacket
+└── util/
+    ├── ChecksumUtil.java            # Per-JAR checksum calculation (CRC32, SHA-256, MD5)
+    ├── EncryptionUtil.java          # [REDACTED — encryption/key derivation implementation]
+    ├── CheckFileManager.java        # Check file generation, in-memory comparison
+    └── PasskeyLogger.java           # Async audit logging with queue overflow protection
+```
+
+---
+
+## Building
 
 ### Requirements
 - Java 21
 - Gradle 8.x
 
-### Project Structure
+### Commands
+```bash
+./gradlew build       # Development build
+./gradlew proguard    # Obfuscated production build
 ```
-src/main/java/com/raeyncreations/raeyncheat/
-├── RaeYNCheat.java                 # Main mod class (server initialization)
-├── client/
-│   └── RaeYNCheatClient.java       # Client-side entry point
-├── config/
-│   └── RaeYNCheatConfig.java       # Configuration handling
-├── server/
-│   ├── PlayerConnectionHandler.java # Player connection event handlers
-│   ├── ValidationHandler.java      # Passkey and checksum validation logic
-│   └── RaeYNCommand.java           # Admin punishment commands
-├── network/
-│   ├── NetworkHandler.java         # Packet registration
-│   └── SyncPacket.java             # Client-server sync packet
-└── util/
-    ├── ChecksumUtil.java           # Checksum calculation (CRC32, SHA-256, MD5)
-    ├── EncryptionUtil.java         # Encryption/obfuscation (AES/GCM, PBKDF2)
-    ├── CheckFileManager.java       # Check file generation/comparison
-    └── PasskeyLogger.java          # Async passkey event logging
-```
+
+---
 
 ## Troubleshooting
 
 ### Mod Verification Disabled on Server
 
-If you see warnings like:
 ```
 [WARN] mods_client directory does not exist. Mod verification is DISABLED.
 ```
 
-**Solution**: 
-1. Create a `mods_client` folder in the server root directory (same level as the `mods` folder)
-2. Place all expected client mods (JAR files) in the `mods_client` directory
-3. Restart the server
-
-The mod will automatically detect the directory and enable verification.
+**Solution**: Create the `mods_client` folder in the server root directory and populate it with the expected client mod JARs, then restart the server. Use `/raeyn cheat checksum refresh` after any changes to `mods_client` without a full restart.
 
 ### Mod Verification Disabled on Client
 
-If the client shows:
 ```
 [WARN] mods directory does not exist. Client check file generation is DISABLED.
 ```
 
-**Solution**: This is unusual and suggests a corrupted Minecraft installation. The `mods` folder should always exist. Try:
-1. Verify your Minecraft installation
-2. Ensure you're using a proper mod loader setup
-3. Check file permissions on the game directory
+**Solution**: This indicates a corrupted Minecraft installation. Verify your installation and ensure the `mods` folder exists with correct permissions.
+
+### False Positives on Environment Check
+
+If legitimate players are being flagged by the environment check (common with Prism Launcher, MultiMC, or GDLauncher due to non-standard ClassLoader entries):
+
+1. Leave `enforceClassLoaderCheck` as `false` (default) until you have reviewed `cheat.log` entries from your actual player base
+2. Review `JVM_FLAG:UNKNOWN:` entries in `cheat.log` — if a specific flag appears consistently from clean players, it can be added to the whitelist in `EnvironmentScanner.java` before the obfuscated build
+3. The environment punishment steps default to two kicks before escalating, giving legitimate players a chance to be reviewed before a ban is applied
+
+### Players Repeatedly Failing Validation at Midnight
+
+Key rollover happens at 00:00:00 server time. If players are consistently failing at midnight:
+- The grace window handles packets that cross the boundary
+- Ensure server and client clocks are not severely out of sync (>30 seconds drift can cause issues)
 
 ### Missing Mods / Registry Sync Errors
 
-If you encounter errors like:
-```
-Failed to handle registry sync from server
-NullPointerException at com.google.common.collect.Iterators$6.transform
-```
+Errors like `Failed to handle registry sync from server` or `Channel failed to connect: missing on server side` are **not caused by RaeYNCheat**. They indicate a mod mismatch between client and server. Ensure both sides have identical mod lists and versions.
 
-Or:
-```
-Channel [mod_name:channel] failed to connect: This channel is missing on the server side
-```
-
-**These errors are NOT caused by RaeYNCheat**. They indicate:
-- A mod is present on the client but missing on the server (or vice versa)
-- Some mods have required network channels that must be on both sides
-- There's a mod compatibility issue between client and server
-
-**Solution**:
-1. Ensure both client and server have the **exact same mods** installed
-2. Check that mod versions match between client and server
-3. Remove any client-only mods from the server's `mods` folder
-4. Remove any server-only mods from the client's `mods` folder
-
-**Note**: RaeYNCheat is designed to handle missing directories gracefully and will disable verification rather than crash. The mod uses defensive programming to ensure it never interferes with Minecraft's normal operation.
+---
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License — see LICENSE file for details.
